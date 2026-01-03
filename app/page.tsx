@@ -1,111 +1,18 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import confetti from "canvas-confetti"
-import {
-  Download,
-  Menu,
-  X,
-  ChevronDown,
-  ChevronRight,
-  BookOpen,
-  Brain,
-  Stethoscope,
-  Send,
-  Loader2,
-  ExternalLink,
-  Sparkles,
-  CheckCircle2,
-  Circle,
-  GraduationCap,
-} from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { WeekSidebar } from "@/components/week-sidebar"
+import { ChatArea } from "@/components/chat-area"
+import { NameModal } from "@/components/name-modal"
 import { Button } from "@/components/ui/button"
-import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
-import { cn } from "@/lib/utils"
+import { Download, Menu, X, Sparkles } from "lucide-react"
+import { weeksData } from "@/lib/weeks-data"
+import { motion, AnimatePresence } from "framer-motion"
 
 export interface Message {
   role: "user" | "assistant"
   content: string
-}
-
-// Confetti celebration function
-const triggerConfetti = () => {
-  const duration = 3000
-  const animationEnd = Date.now() + duration
-  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
-
-  const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min
-
-  const interval = window.setInterval(() => {
-    const timeLeft = animationEnd - Date.now()
-    if (timeLeft <= 0) return clearInterval(interval)
-
-    const particleCount = 50 * (timeLeft / duration)
-
-    confetti({
-      ...defaults,
-      particleCount,
-      origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-      colors: ["#0d9488", "#14b8a6", "#5eead4", "#fbbf24", "#f59e0b"],
-    })
-    confetti({
-      ...defaults,
-      particleCount,
-      origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-      colors: ["#0d9488", "#14b8a6", "#5eead4", "#fbbf24", "#f59e0b"],
-    })
-  }, 250)
-}
-
-// Quick action definitions
-const quickActions = [
-  {
-    label: "Work Through This Article",
-    icon: BookOpen,
-    message: "I'd like to work through this week's article. Let me start by sharing what I understood from it...",
-    gradient: "from-teal-500 to-emerald-500",
-  },
-  {
-    label: "Check My Understanding",
-    icon: Brain,
-    message: "I want to test my understanding of this week's concepts. Can you ask me some questions?",
-    gradient: "from-amber-500 to-orange-500",
-  },
-  {
-    label: "Connect to Clinical Practice",
-    icon: Stethoscope,
-    message: "I'm trying to connect this research to clinical practice. Here's what I'm thinking...",
-    gradient: "from-purple-500 to-pink-500",
-  },
-]
-
-// Animation variants
-const sidebarVariants = {
-  hidden: { x: "-100%", opacity: 0 },
-  visible: { x: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 200 } },
-  exit: { x: "-100%", opacity: 0, transition: { duration: 0.2 } },
-}
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, type: "spring", damping: 20, stiffness: 100 },
-  }),
-}
-
-const messageVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", damping: 25, stiffness: 200 } },
-}
-
-const pulseVariants = {
-  pulse: {
-    scale: [1, 1.05, 1],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-  },
+  id: string
 }
 
 export default function Home() {
@@ -115,15 +22,10 @@ export default function Home() {
   const [showNameModal, setShowNameModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [expandedActs, setExpandedActs] = useState<string[]>(["I"])
-  const [hasTriggeredFirstMessageConfetti, setHasTriggeredFirstMessageConfetti] = useState(false)
-  const [nameInput, setNameInput] = useState("")
-  const [input, setInput] = useState("")
+  const [showExportSparkle, setShowExportSparkle] = useState(false)
+  const [messageCount, setMessageCount] = useState(0)
+  const [showFirstMessageCelebration, setShowFirstMessageCelebration] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Calculate progress
-  const completedWeeks = new Set<number>()
-  const progress = Math.round((completedWeeks.size / weeksData.length) * 100)
 
   useEffect(() => {
     const savedName = localStorage.getItem("slhs303_student_name")
@@ -138,17 +40,13 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Trigger confetti on first message
   useEffect(() => {
-    if (messages.length === 2 && !hasTriggeredFirstMessageConfetti) {
-      triggerConfetti()
-      setHasTriggeredFirstMessageConfetti(true)
-    }
-  }, [messages.length, hasTriggeredFirstMessageConfetti])
+    const userMessages = messages.filter((m) => m.role === "user").length
+    setMessageCount(userMessages)
+  }, [messages])
 
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const finalName = nameInput.trim() || "Student"
+  const handleNameSubmit = (name: string) => {
+    const finalName = name.trim() || "Student"
     setStudentName(finalName)
     localStorage.setItem("slhs303_student_name", finalName)
     setShowNameModal(false)
@@ -157,61 +55,53 @@ export default function Home() {
   const handleWeekChange = (week: number) => {
     setSelectedWeek(week)
     setMessages([])
-    setHasTriggeredFirstMessageConfetti(false)
     setSidebarOpen(false)
   }
 
-  const toggleAct = (actNumber: string) => {
-    setExpandedActs((prev) =>
-      prev.includes(actNumber) ? prev.filter((a) => a !== actNumber) : [...prev, actNumber]
-    )
-  }
+  const sendMessage = async (content: string) => {
+    const userMessage: Message = { role: "user", content, id: crypto.randomUUID() }
+    const isFirstMessage = messages.length === 0
+    setMessages((prev) => [...prev, userMessage])
+    setIsLoading(true)
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      const userMessage: Message = { role: "user", content }
-      setMessages((prev) => [...prev, userMessage])
-      setIsLoading(true)
+    if (isFirstMessage) {
+      setShowFirstMessageCelebration(true)
+      setTimeout(() => setShowFirstMessageCelebration(false), 2000)
+    }
 
-      try {
-        const weekInfo = weeksData.find((w) => w.week === selectedWeek)
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            conversationHistory: messages,
-            weekNumber: selectedWeek,
-            weekTopic: weekInfo?.topic || "",
-          }),
-        })
+    try {
+      const weekInfo = weeksData.find((w) => w.week === selectedWeek)
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: content,
+          conversationHistory: messages,
+          weekNumber: selectedWeek,
+          weekTopic: weekInfo?.topic || "",
+        }),
+      })
 
-        const data = await response.json()
-        const assistantMessage: Message = { role: "assistant", content: data.response }
-        setMessages((prev) => [...prev, assistantMessage])
-      } catch (error) {
-        console.error("Error sending message:", error)
-        const errorMessage: Message = {
-          role: "assistant",
-          content: "I apologize, but I encountered an error. Please try again.",
-        }
-        setMessages((prev) => [...prev, errorMessage])
-      } finally {
-        setIsLoading(false)
+      const data = await response.json()
+      const assistantMessage: Message = { role: "assistant", content: data.response, id: crypto.randomUUID() }
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "I apologize, but I encountered an error. Please try again.",
+        id: crypto.randomUUID(),
       }
-    },
-    [messages, selectedWeek]
-  )
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (input.trim() && !isLoading) {
-      sendMessage(input.trim())
-      setInput("")
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const exportConversation = () => {
+    setShowExportSparkle(true)
+    setTimeout(() => setShowExportSparkle(false), 1500)
+
     const weekInfo = weeksData.find((w) => w.week === selectedWeek)
     const now = new Date()
     const dateStr = now.toLocaleDateString("en-US", {
@@ -248,16 +138,12 @@ export default function Home() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-
-    // Trigger confetti on export
-    triggerConfetti()
   }
 
   const currentWeek = weeksData.find((w) => w.week === selectedWeek)
-  const currentAct = acts.find((a) => a.number === currentWeek?.act)
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-cyan-50/40 animate-gradient-shift">
       {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -265,219 +151,28 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar - Desktop always visible, Mobile slide-out */}
-      <AnimatePresence mode="wait">
-        {(sidebarOpen || typeof window !== "undefined") && (
-          <motion.aside
-            variants={sidebarVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className={cn(
-              "fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white/80 backdrop-blur-xl border-r border-amber-200/50 shadow-xl lg:shadow-none",
-              "flex flex-col",
-              !sidebarOpen && "hidden lg:flex"
-            )}
-          >
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-amber-200/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <motion.div
-                    variants={pulseVariants}
-                    animate="pulse"
-                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/25"
-                  >
-                    <GraduationCap className="w-5 h-5 text-white" />
-                  </motion.div>
-                  <div>
-                    <h1 className="font-bold text-gray-900">SLHS 303</h1>
-                    <p className="text-xs text-gray-500">Speech Science</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden hover:bg-amber-100"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Scrollable Sidebar Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* This Week's Focus Card */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0}
-                className="rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 p-4 text-white shadow-lg shadow-teal-500/25"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm font-medium opacity-90">This Week's Focus</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1">Week {selectedWeek}: {currentWeek?.topic}</h3>
-                <p className="text-sm opacity-80 mb-3">Act {currentAct?.number}: {currentAct?.title}</p>
-
-                <div className="bg-white/20 rounded-xl p-3 backdrop-blur-sm">
-                  <p className="text-sm font-medium mb-1">{currentWeek?.article.title}</p>
-                  <p className="text-xs opacity-80 mb-2">by {currentWeek?.article.author}</p>
-                  {currentWeek?.article.notebookLMLink && (
-                    <a
-                      href={currentWeek.article.notebookLMLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs bg-white/30 hover:bg-white/40 transition-colors rounded-lg px-3 py-1.5"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Open in NotebookLM
-                    </a>
-                  )}
-                </div>
-              </motion.div>
-
-              {/* Progress Card */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={1}
-                className="rounded-2xl bg-white border border-amber-200/50 p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Your Progress</span>
-                  <span className="text-sm font-bold text-teal-600">{progress}%</span>
-                </div>
-                <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {completedWeeks.size} of {weeksData.length} weeks explored
-                </p>
-              </motion.div>
-
-              {/* Week Navigator */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={2}
-                className="rounded-2xl bg-white border border-amber-200/50 overflow-hidden shadow-sm"
-              >
-                <div className="p-3 border-b border-amber-100">
-                  <span className="text-sm font-medium text-gray-700">Course Navigator</span>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {acts.map((act) => {
-                    const actWeeks = weeksData.filter((w) => w.act === act.number)
-                    const isExpanded = expandedActs.includes(act.number)
-
-                    return (
-                      <div key={act.number}>
-                        <button
-                          onClick={() => toggleAct(act.number)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-amber-50 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <motion.div
-                              animate={{ rotate: isExpanded ? 90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            </motion.div>
-                            <span className="text-sm font-medium text-gray-700">
-                              Act {act.number}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">{act.title}</span>
-                        </button>
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              {actWeeks.map((week) => (
-                                <button
-                                  key={week.week}
-                                  onClick={() => handleWeekChange(week.week)}
-                                  className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all",
-                                    selectedWeek === week.week
-                                      ? "bg-teal-50 border-l-3 border-teal-500"
-                                      : "hover:bg-amber-50 border-l-3 border-transparent"
-                                  )}
-                                >
-                                  {completedWeeks.has(week.week) ? (
-                                    <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
-                                  ) : selectedWeek === week.week ? (
-                                    <motion.div
-                                      animate={{ scale: [1, 1.2, 1] }}
-                                      transition={{ duration: 1.5, repeat: Infinity }}
-                                    >
-                                      <Circle className="w-4 h-4 text-teal-500 fill-teal-500 shrink-0" />
-                                    </motion.div>
-                                  ) : (
-                                    <Circle className="w-4 h-4 text-gray-300 shrink-0" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <p
-                                      className={cn(
-                                        "text-sm truncate",
-                                        selectedWeek === week.week
-                                          ? "font-medium text-teal-700"
-                                          : "text-gray-600"
-                                      )}
-                                    >
-                                      Week {week.week}: {week.topic}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )
-                  })}
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Student Name Footer */}
-            {studentName && (
-              <div className="p-4 border-t border-amber-200/50 bg-amber-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-sm font-medium">
-                    {studentName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">{studentName}</p>
-                    <p className="text-xs text-gray-500">Student</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.aside>
-        )}
+      {/* Sidebar */}
+      <AnimatePresence>
+        <motion.aside
+          initial={false}
+          animate={{ x: sidebarOpen ? 0 : "-100%" }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl lg:shadow-none lg:translate-x-0 lg:transform-none"
+        >
+          <div className="flex items-center justify-between p-4 border-b border-gray-200/50 lg:hidden">
+            <span className="font-semibold text-gray-900">Select Week</span>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <WeekSidebar selectedWeek={selectedWeek} onWeekSelect={handleWeekChange} />
+        </motion.aside>
       </AnimatePresence>
 
       {/* Main content */}
@@ -486,243 +181,93 @@ export default function Home() {
         <motion.header
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white/80 backdrop-blur-xl border-b border-amber-200/50 px-4 py-3 flex items-center justify-between gap-4"
+          className="bg-white/70 backdrop-blur-xl border-b border-gray-200/50 px-4 py-3 flex items-center justify-between gap-4 shadow-sm"
         >
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden hover:bg-amber-100"
-              onClick={() => setSidebarOpen(true)}
-            >
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Critical Reasoning Mirror</h1>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                Week {selectedWeek}: {currentWeek?.topic}
-              </p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-semibold text-gray-900">SLHS 303 - Speech Science</h1>
+              <motion.span
+                key={selectedWeek}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 animate-float"
+              >
+                Week {selectedWeek}
+              </motion.span>
             </div>
           </div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportConversation}
-              disabled={messages.length === 0}
-              className="flex items-center gap-2 bg-white hover:bg-teal-50 border-teal-200 text-teal-700 hover:text-teal-800 hover:border-teal-300 transition-all"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          </motion.div>
-        </motion.header>
-
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
+          <div className="flex items-center gap-3">
+            {messageCount >= 3 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex flex-col items-center justify-center h-full text-center px-4"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-medium shadow-lg shadow-amber-400/25"
               >
-                <div className="max-w-lg space-y-8">
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.3, type: "spring" }}
-                  >
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-teal-500/30">
-                      <Sparkles className="w-10 h-10 text-white" />
-                    </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                      Critical Reasoning Mirror
-                    </h2>
-                    <p className="text-gray-600 text-lg leading-relaxed">
-                      This tool reflects your thinking back to you so you can examine it.
-                      It's not a source of truth—it's a mirror for your reasoning about{" "}
-                      <span className="font-semibold text-teal-600">{currentWeek?.topic}</span>.
-                    </p>
-                  </motion.div>
-
-                  <div className="space-y-3">
-                    {quickActions.map((action, index) => (
-                      <motion.button
-                        key={action.label}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.4 + index * 0.1 }}
-                        whileHover={{ scale: 1.02, x: 4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => sendMessage(action.message)}
-                        className={cn(
-                          "w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all",
-                          "bg-white border border-amber-200/50 shadow-sm hover:shadow-md",
-                          "group"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                            "bg-gradient-to-br shadow-lg transition-transform group-hover:scale-110",
-                            action.gradient
-                          )}
-                        >
-                          <action.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{action.label}</p>
-                          <p className="text-sm text-gray-500">Start a guided conversation</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
+                <span className="animate-pulse">🔥</span>
+                <span>{messageCount} turns</span>
               </motion.div>
-            ) : (
-              <>
-                <AnimatePresence>
-                  {messages.map((message, index) => (
-                    <motion.div
-                      key={index}
-                      variants={messageVariants}
-                      initial="hidden"
-                      animate="visible"
-                      className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 shadow-sm",
-                          message.role === "user"
-                            ? "bg-gradient-to-br from-teal-500 to-emerald-600 text-white"
-                            : "bg-white border border-amber-200/50 text-gray-900"
-                        )}
-                      >
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {isLoading && (
+            )}
+            {studentName && (
+              <span className="hidden sm:block text-sm text-gray-600">
+                Hi, <span className="font-medium text-teal-700">{studentName}</span>
+              </span>
+            )}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportConversation}
+                disabled={messages.length === 0}
+                className="flex items-center gap-2 bg-white/50 hover:bg-white border-gray-200 hover:border-teal-300 hover:shadow-md transition-all duration-300"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+              <AnimatePresence>
+                {showExportSparkle && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 2, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
                   >
-                    <div className="bg-white border border-amber-200/50 rounded-2xl px-4 py-3 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-teal-500" />
-                        <span className="text-sm text-gray-500">Reflecting...</span>
-                      </div>
-                    </div>
+                    <Sparkles className="h-6 w-6 text-amber-400" />
                   </motion.div>
                 )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
+              </AnimatePresence>
+            </div>
           </div>
+        </motion.header>
 
-          {/* Input area */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="border-t border-amber-200/50 bg-white/80 backdrop-blur-xl p-4"
-          >
-            <form onSubmit={handleSubmit} className="flex gap-3 max-w-4xl mx-auto">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Share your thinking..."
-                className="flex-1 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-400"
-                disabled={isLoading}
-              />
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-xl px-5 py-3 shadow-lg shadow-teal-500/25 transition-all disabled:opacity-50 disabled:shadow-none"
-                >
-                  <Send className="h-4 w-4" />
-                  <span className="sr-only">Send</span>
-                </Button>
-              </motion.div>
-            </form>
-          </motion.div>
-        </div>
+        {/* First message celebration */}
+        <AnimatePresence>
+          {showFirstMessageCelebration && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-full shadow-lg shadow-teal-500/30 text-sm font-medium"
+            >
+              Great start! Let's think together.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Chat area */}
+        <ChatArea
+          messages={messages}
+          onSendMessage={sendMessage}
+          isLoading={isLoading}
+          weekTopic={currentWeek?.topic || ""}
+          messagesEndRef={messagesEndRef}
+        />
       </div>
 
       {/* Name modal */}
-      <AnimatePresence>
-        {showNameModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8"
-            >
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/30">
-                <GraduationCap className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                Welcome to SLHS 303
-              </h2>
-              <p className="text-gray-600 text-center mb-8">
-                Your name will be included in exported conversations for Canvas submission.
-              </p>
-              <form onSubmit={handleNameSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    What's your name?
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full rounded-xl border border-amber-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 rounded-xl border-amber-200 hover:bg-amber-50"
-                    onClick={() => {
-                      setStudentName("Student")
-                      localStorage.setItem("slhs303_student_name", "Student")
-                      setShowNameModal(false)
-                    }}
-                  >
-                    Skip
-                  </Button>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
-                    <Button
-                      type="submit"
-                      className="w-full rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 shadow-lg shadow-teal-500/25"
-                    >
-                      Continue
-                    </Button>
-                  </motion.div>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NameModal isOpen={showNameModal} onSubmit={handleNameSubmit} />
     </div>
   )
 }
