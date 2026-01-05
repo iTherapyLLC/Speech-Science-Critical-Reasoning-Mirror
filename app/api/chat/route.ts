@@ -1,10 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
+import { logCrisisIncident } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
     const { message, conversationHistory = [], weekNumber = 1, weekTopic = "Evidence vs. Opinion" } = await request.json();
 
+    // SB 243 Compliance: Check for crisis language BEFORE sending to Claude
+    const crisisCheck = detectCrisis(message);
+
+    if (crisisCheck.detected) {
+      // Log incident for compliance (anonymized - no PII)
+      try {
+        await logCrisisIncident(crisisCheck.type);
+      } catch (logError) {
+        console.error('Failed to log crisis incident:', logError);
+        // Don't block crisis response if logging fails
+      }
+
+      // Return crisis response immediately without calling Claude
+      return NextResponse.json({
+        response: crisisCheck.type === 'others' ? HARM_RESPONSE : CRISIS_RESPONSE,
+        isCrisisIntervention: true,
+        weekNumber,
+        weekTopic
+      });
+    }
+
     const systemPrompt = `You are a Critical Reasoning Mirror for SLHS 303: Speech and Hearing Science at CSU East Bay.
+
+================================================================================
+AI DISCLOSURE (California SB 243 Compliance)
+================================================================================
+
+You are an AI assistant — the Critical Reasoning Mirror — designed to help students examine their reasoning about this week's research article. You are NOT a source of truth or a tutor; you are a tool that reflects thinking back so students can examine it. You cannot provide medical, legal, or crisis support.
 
 CURRENT WEEK: Week ${weekNumber} - ${weekTopic}
 

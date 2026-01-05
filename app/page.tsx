@@ -124,6 +124,7 @@ export default function Home() {
   const [input, setInput] = useState("")
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
+  const [breakReminderShown, setBreakReminderShown] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress
@@ -151,6 +152,26 @@ export default function Home() {
     }
   }, [messages.length, hasTriggeredFirstMessageConfetti])
 
+  // SB 243 Compliance: Break reminder after 3 hours of continuous use
+  useEffect(() => {
+    if (!sessionStartTime || breakReminderShown) return
+
+    const checkInterval = setInterval(() => {
+      const hoursElapsed = (Date.now() - sessionStartTime.getTime()) / (1000 * 60 * 60)
+      if (hoursElapsed >= 3 && !breakReminderShown) {
+        setBreakReminderShown(true)
+        // Add break reminder as system message
+        const breakMessage: Message = {
+          role: "assistant",
+          content: "**Break Reminder:** You've been engaged for over 3 hours. Consider taking a break — rest supports learning and memory consolidation. The research shows that spaced practice is more effective than marathon sessions. I'll be here when you return!",
+        }
+        setMessages((prev) => [...prev, breakMessage])
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(checkInterval)
+  }, [sessionStartTime, breakReminderShown])
+
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const finalName = nameInput.trim() || "Student"
@@ -164,6 +185,7 @@ export default function Home() {
     setMessages([])
     setHasTriggeredFirstMessageConfetti(false)
     setSessionStartTime(null)
+    setBreakReminderShown(false)
     setSidebarOpen(false)
   }
 
@@ -479,14 +501,22 @@ export default function Home() {
             {/* Student Name Footer */}
             {studentName && (
               <div className="p-4 border-t border-amber-200/50 bg-amber-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-sm font-medium">
-                    {studentName.charAt(0).toUpperCase()}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-sm font-medium">
+                      {studentName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{studentName}</p>
+                      <p className="text-xs text-gray-500">Student</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">{studentName}</p>
-                    <p className="text-xs text-gray-500">Student</p>
-                  </div>
+                  <a
+                    href="/safety"
+                    className="text-xs text-gray-400 hover:text-teal-600 transition-colors"
+                  >
+                    Safety & Privacy
+                  </a>
                 </div>
               </div>
             )}

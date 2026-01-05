@@ -30,3 +30,19 @@ export function createServiceClient(): SupabaseClient<Database> {
 
   return createClient<Database>(supabaseUrl, serviceRoleKey)
 }
+
+// Log crisis incident for SB 243 compliance reporting
+// Anonymized - only stores incident type and timestamp, no PII
+export async function logCrisisIncident(type: 'self' | 'others' | null) {
+  try {
+    const supabase = createServiceClient()
+
+    await supabase.from('crisis_incidents').insert({
+      incident_type: type || 'unknown',
+      detected_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    // Log error but don't throw - crisis response should not be blocked
+    console.error('Failed to log crisis incident:', error)
+  }
+}

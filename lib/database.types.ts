@@ -94,6 +94,24 @@ export interface Database {
           }
         ]
       }
+      crisis_incidents: {
+        Row: {
+          id: string
+          incident_type: string
+          detected_at: string
+        }
+        Insert: {
+          id?: string
+          incident_type: string
+          detected_at?: string
+        }
+        Update: {
+          id?: string
+          incident_type?: string
+          detected_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       submission_details: {
