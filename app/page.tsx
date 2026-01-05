@@ -219,13 +219,41 @@ export default function Home() {
         })
 
         const data = await response.json()
+
+        // Check for error responses from the API
+        if (!response.ok || data.error) {
+          console.error("API error:", data.error, data.errorCode)
+          const errorMessage: Message = {
+            role: "assistant",
+            content: data.error || "Something went wrong. Please try again.",
+          }
+          setMessages((prev) => [...prev, errorMessage])
+          return
+        }
+
+        // Validate that we have a response
+        if (!data.response) {
+          console.error("Missing response in API data:", data)
+          const errorMessage: Message = {
+            role: "assistant",
+            content: "I didn't receive a proper response. Please try again.",
+          }
+          setMessages((prev) => [...prev, errorMessage])
+          return
+        }
+
         const assistantMessage: Message = { role: "assistant", content: data.response }
         setMessages((prev) => [...prev, assistantMessage])
       } catch (error) {
         console.error("Error sending message:", error)
+        // Provide more specific error messages
+        let errorContent = "Something went wrong. Please try again."
+        if (error instanceof TypeError && error.message.includes("fetch")) {
+          errorContent = "Unable to connect to the server. Please check your internet connection and try again."
+        }
         const errorMessage: Message = {
           role: "assistant",
-          content: "I apologize, but I encountered an error. Please try again.",
+          content: errorContent,
         }
         setMessages((prev) => [...prev, errorMessage])
       } finally {

@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
 
+// Timeout for API requests (90 seconds - Claude can take a while for long conversations)
+const API_TIMEOUT_MS = 90000;
+
+// Maximum conversation turns before warning (each turn = user + assistant message)
+const MAX_CONVERSATION_TURNS = 50;
+
 export async function POST(request: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[${requestId}] Chat API request received`);
+
   try {
     const { message, conversationHistory = [], weekNumber = 1, weekTopic = "Evidence vs. Opinion" } = await request.json();
+
+    // Log request details for debugging
+    console.log(`[${requestId}] Week: ${weekNumber}, History length: ${conversationHistory.length}, Message length: ${message?.length || 0}`);
 
     // SB 243 Compliance: Check for crisis language BEFORE sending to Claude
     const crisisCheck = detectCrisis(message);
@@ -657,36 +669,105 @@ Be the colleague who takes their thinking seriously enough to challenge it.`;
       { role: 'user', content: message },
     ];
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: messages,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Anthropic API error:', errorText);
-      return NextResponse.json({ error: 'API request failed', details: errorText }, { status: 500 });
+    // Check conversation length and warn if getting long
+    const conversationTurns = Math.floor(conversationHistory.length / 2);
+    if (conversationTurns >= MAX_CONVERSATION_TURNS) {
+      console.warn(`[${requestId}] Long conversation detected: ${conversationTurns} turns`);
     }
 
-    const data = await response.json();
-    return NextResponse.json({ 
-      response: data.content[0].text,
-      weekNumber,
-      weekTopic
-    });
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error(`[${requestId}] Request timed out after ${API_TIMEOUT_MS}ms`);
+      controller.abort();
+    }, API_TIMEOUT_MS);
+
+    console.log(`[${requestId}] Sending request to Anthropic API...`);
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: messages,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[${requestId}] Anthropic API error (${response.status}):`, errorText);
+
+        // Return user-friendly error messages based on status
+        if (response.status === 429) {
+          return NextResponse.json({
+            error: 'Too many requests. Please wait a moment and try again.',
+            errorCode: 'RATE_LIMITED'
+          }, { status: 429 });
+        } else if (response.status === 401) {
+          return NextResponse.json({
+            error: 'Service configuration error. Please contact your instructor.',
+            errorCode: 'AUTH_ERROR'
+          }, { status: 500 });
+        } else if (response.status >= 500) {
+          return NextResponse.json({
+            error: 'The AI service is temporarily unavailable. Please try again in a few minutes.',
+            errorCode: 'SERVICE_UNAVAILABLE'
+          }, { status: 503 });
+        }
+
+        return NextResponse.json({
+          error: 'Something went wrong. Please try again.',
+          errorCode: 'API_ERROR'
+        }, { status: 500 });
+      }
+
+      const data = await response.json();
+
+      // Validate response structure
+      if (!data.content || !Array.isArray(data.content) || !data.content[0]?.text) {
+        console.error(`[${requestId}] Invalid response structure:`, JSON.stringify(data).substring(0, 200));
+        return NextResponse.json({
+          error: 'Received an invalid response. Please try again.',
+          errorCode: 'INVALID_RESPONSE'
+        }, { status: 500 });
+      }
+
+      console.log(`[${requestId}] Successfully received response (${data.content[0].text.length} chars)`);
+
+      return NextResponse.json({
+        response: data.content[0].text,
+        weekNumber,
+        weekTopic
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error(`[${requestId}] Request aborted due to timeout`);
+        return NextResponse.json({
+          error: 'The request took too long. Please try sending a shorter message or starting a new conversation.',
+          errorCode: 'TIMEOUT'
+        }, { status: 504 });
+      }
+
+      throw fetchError; // Re-throw for outer catch block
+    }
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error(`[${requestId}] Unexpected error:`, error);
+    return NextResponse.json({
+      error: 'Something went wrong. Please try again.',
+      errorCode: 'INTERNAL_ERROR'
+    }, { status: 500 });
   }
 }
 
