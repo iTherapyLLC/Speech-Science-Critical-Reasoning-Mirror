@@ -21,8 +21,11 @@ import {
   GraduationCap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SubmissionModal } from "@/components/submission-modal"
 import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
 import { cn } from "@/lib/utils"
+import { getSupabase } from "@/lib/supabase"
+import type { Message as DBMessage, Json } from "@/lib/database.types"
 
 export interface Message {
   role: "user" | "assistant"
@@ -119,6 +122,8 @@ export default function Home() {
   const [hasTriggeredFirstMessageConfetti, setHasTriggeredFirstMessageConfetti] = useState(false)
   const [nameInput, setNameInput] = useState("")
   const [input, setInput] = useState("")
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false)
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress
@@ -158,6 +163,7 @@ export default function Home() {
     setSelectedWeek(week)
     setMessages([])
     setHasTriggeredFirstMessageConfetti(false)
+    setSessionStartTime(null)
     setSidebarOpen(false)
   }
 
@@ -169,6 +175,10 @@ export default function Home() {
 
   const sendMessage = useCallback(
     async (content: string) => {
+      // Track session start time on first message
+      if (!sessionStartTime) {
+        setSessionStartTime(new Date())
+      }
       const userMessage: Message = { role: "user", content }
       setMessages((prev) => [...prev, userMessage])
       setIsLoading(true)
@@ -200,7 +210,7 @@ export default function Home() {
         setIsLoading(false)
       }
     },
-    [messages, selectedWeek]
+    [messages, selectedWeek, sessionStartTime]
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -251,6 +261,10 @@ export default function Home() {
 
     // Trigger confetti on export
     triggerConfetti()
+  }
+
+  const handleSubmitForGrading = () => {
+    setShowSubmissionModal(true)
   }
 
   const currentWeek = weeksData.find((w) => w.week === selectedWeek)
@@ -504,18 +518,31 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportConversation}
-              disabled={messages.length === 0}
-              className="flex items-center gap-2 bg-white hover:bg-teal-50 border-teal-200 text-teal-700 hover:text-teal-800 hover:border-teal-300 transition-all"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          </motion.div>
+          <div className="flex items-center gap-2">
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportConversation}
+                disabled={messages.length === 0}
+                className="flex items-center gap-2 bg-white hover:bg-teal-50 border-teal-200 text-teal-700 hover:text-teal-800 hover:border-teal-300 transition-all"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                size="sm"
+                onClick={handleSubmitForGrading}
+                disabled={messages.length === 0}
+                className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-teal-500/25 transition-all"
+              >
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">Submit</span>
+              </Button>
+            </motion.div>
+          </div>
         </motion.header>
 
         {/* Chat area */}
@@ -723,6 +750,16 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Submission Modal */}
+      <SubmissionModal
+        isOpen={showSubmissionModal}
+        onClose={() => setShowSubmissionModal(false)}
+        messages={messages}
+        weekNumber={selectedWeek}
+        studentName={studentName}
+        sessionStartTime={sessionStartTime}
+      />
     </div>
   )
 }
