@@ -1,15 +1,52 @@
 export const acts = [
-  { number: "I", title: "Why Measurement Matters" },
-  { number: "II", title: "How Hearing Works—and Fails" },
-  { number: "III", title: "How Voice Is Produced" },
-  { number: "IV", title: "How Articulation Shapes the Signal" },
-  { number: "V", title: "Resonance and the Full Vocal Tract" },
-  { number: "VI", title: "From Science to Practice" },
+  {
+    number: "I",
+    title: "Measurement & Evidence",
+    description: "Before we trust data, we learn how data misleads.",
+    weeks: "1-4",
+  },
+  {
+    number: "II",
+    title: "Hearing & Perception Under Noise",
+    description: "The signal is never clean.",
+    weeks: "5-7",
+  },
+  {
+    number: "III",
+    title: "Voice as a Measured System",
+    description: "What does 'voice quality' actually mean?",
+    weeks: "8-9",
+  },
+  {
+    number: "IV",
+    title: "Articulation & Timing",
+    description: "Speech is dynamic, not static.",
+    weeks: "10-12",
+  },
+  {
+    number: "V",
+    title: "Resonance & Filter Interactions",
+    description: "The filter changes the source.",
+    weeks: "13",
+  },
+  {
+    number: "VI",
+    title: "Integration & Professional Practice",
+    description: "Connecting science to clinical responsibility.",
+    weeks: "14-15",
+  },
 ]
+
+export const courseInfo = {
+  centralQuestion: "What has to be true for linguistic communication to be worth the energy?",
+  courseCode: "SLHS 303",
+  courseName: "Speech Science",
+}
 
 export interface WeekData {
   week: number
   topic: string
+  teaser: string
   act: string
   article: {
     title: string
@@ -19,10 +56,11 @@ export interface WeekData {
 }
 
 export const weeksData: WeekData[] = [
-  // Act I
+  // Act I: Measurement & Evidence
   {
     week: 1,
     topic: "Evidence vs. Opinion",
+    teaser: "What counts as evidence?",
     act: "I",
     article: {
       title: "Evidence-Based Practice in Speech-Language Pathology",
@@ -32,7 +70,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 2,
-    topic: "Intensity Confounds",
+    topic: "Acoustic Perturbation Measures",
+    teaser: "Jitter, shimmer, and their confounds",
     act: "I",
     article: {
       title: "Acoustic Perturbation Measures Improve with Increasing Vocal Intensity",
@@ -42,7 +81,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 3,
-    topic: "Environmental Confounds",
+    topic: "Reverberation & Measurement Stability",
+    teaser: "Environment as confound",
     act: "I",
     article: {
       title: "Sensitivity of Acoustic Voice Quality Measures in Simulated Reverberation",
@@ -52,7 +92,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 4,
-    topic: "Tool Confounds",
+    topic: "Software Comparability",
+    teaser: "Tools disagree with each other",
     act: "I",
     article: {
       title: "Quantitative and Descriptive Comparison of Four Acoustic Analysis Systems",
@@ -60,10 +101,11 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/ad2b1c00-e15d-411a-9930-d75141a1ccfb",
     },
   },
-  // Act II
+  // Act II: Hearing & Perception Under Noise
   {
     week: 5,
-    topic: "Auditory System & Speech-in-Noise",
+    topic: "Noise vs. Speech Masking",
+    teaser: "Different noise, different interference",
     act: "II",
     article: {
       title: "Predictors of Susceptibility to Noise and Speech Masking",
@@ -73,7 +115,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 6,
-    topic: "Context Effects",
+    topic: "Context in Speech-in-Noise",
+    teaser: "How expectations shape perception",
     act: "II",
     article: {
       title: "Effect of Contextual Information on Speech-in-Noise Perception",
@@ -83,7 +126,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 7,
-    topic: "Challenging Received Wisdom",
+    topic: "Categorical Perception Revisited",
+    teaser: "Boundaries are gradients, not walls",
     act: "II",
     article: {
       title: "The Myth of Categorical Perception",
@@ -91,10 +135,11 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/50dceb54-5b42-4766-9f6a-6c0b4ae5d5d4",
     },
   },
-  // Act III
+  // Act III: Voice as a Measured System
   {
     week: 8,
-    topic: "Phonation I: Measurement Validity",
+    topic: "Acoustic Voice Quality Meta-analysis",
+    teaser: "What predicts perceived quality?",
     act: "III",
     article: {
       title: "Acoustic Measurement of Overall Voice Quality: A Meta-Analysis",
@@ -104,18 +149,20 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 9,
-    topic: "Phonation II: Source-Filter & Motor Control",
+    topic: "AVQI Validity",
+    teaser: "Can one index capture voice?",
     act: "III",
     article: {
       title: "Meta-Analysis on the Validity of the Acoustic Voice Quality Index",
-      author: "Batthyany",
+      author: "Barsties",
       notebookLMLink: "https://notebooklm.google.com/notebook/c1979f7d-5d31-4db8-8cff-7ab835c10b0b",
     },
   },
-  // Act IV
+  // Act IV: Articulation & Timing
   {
     week: 10,
-    topic: "Vowels & Dialectal Variation",
+    topic: "Vowels in Developing & Disordered Speech",
+    teaser: "Formants as clinical markers",
     act: "IV",
     article: {
       title: "What Acoustic Studies Tell Us About Vowels in Developing and Disordered Speech",
@@ -125,7 +172,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 11,
-    topic: "Consonants & VOT",
+    topic: "VOT & Phonetic Timing",
+    teaser: "Milliseconds matter",
     act: "IV",
     article: {
       title: "Production Benefits of Childhood Overhearing",
@@ -135,7 +183,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 12,
-    topic: "Coarticulation & Prosody",
+    topic: "Categorization Consistency",
+    teaser: "How reliably do we classify speech sounds?",
     act: "IV",
     article: {
       title: "Consistency in Phonetic Categorization Predicts Speech-in-Noise Perception",
@@ -143,10 +192,11 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/4b4c1a43-08fc-456d-ae93-05b4c643020f",
     },
   },
-  // Act V
+  // Act V: Resonance & Filter Interactions
   {
     week: 13,
-    topic: "Resonance & Nasal Coupling",
+    topic: "Nasalance Effects on CPP",
+    teaser: "When resonance affects phonation measures",
     act: "V",
     article: {
       title: "The Impact of Nasalance on Cepstral Peak Prominence and HNR",
@@ -154,10 +204,11 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/dc093f57-06d2-4420-a9c5-5064e7f7ef90",
     },
   },
-  // Act VI
+  // Act VI: Integration & Professional Practice
   {
     week: 14,
-    topic: "Instrumentation & Workflow",
+    topic: "High-Quality Acoustic Analysis",
+    teaser: "Best practices for clinical measurement",
     act: "VI",
     article: {
       title: "Conducting High-Quality and Reliable Acoustic Analysis",
@@ -167,7 +218,8 @@ export const weeksData: WeekData[] = [
   },
   {
     week: 15,
-    topic: "Integration & ASHA Standards",
+    topic: "ASHA 2020 Certification Standards",
+    teaser: "What the profession expects of you",
     act: "VI",
     article: {
       title: "2020 Standards for the Certificate of Clinical Competence in SLP",
