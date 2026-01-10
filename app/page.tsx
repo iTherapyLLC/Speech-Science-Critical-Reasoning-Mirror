@@ -127,11 +127,16 @@ export default function Home() {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [breakReminderShown, setBreakReminderShown] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress
   const completedWeeks = new Set<number>()
   const progress = Math.round((completedWeeks.size / weeksData.length) * 100)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const savedName = localStorage.getItem("slhs303_student_name")
@@ -494,7 +499,7 @@ export default function Home() {
 
       {/* Sidebar - Desktop always visible, Mobile slide-out */}
       <AnimatePresence mode="wait">
-        {(sidebarOpen || typeof window !== "undefined") && (
+        {(sidebarOpen || mounted) && (
           <motion.aside
             variants={sidebarVariants}
             initial="hidden"
