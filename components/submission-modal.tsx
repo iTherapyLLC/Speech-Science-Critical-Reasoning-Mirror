@@ -6,21 +6,31 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Send, X, Loader2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+interface Message {
+  role: "user" | "assistant"
+  content: string
+}
+
 interface SubmissionModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (reflection: string) => Promise<void>
   weekNumber: number
-  messageCount: number
+  messages: Message[]
+  studentName: string
+  sessionStartTime: Date | null
+  onSuccess?: () => void
 }
 
 export function SubmissionModal({
   isOpen,
   onClose,
-  onSubmit,
   weekNumber,
-  messageCount
+  messages,
+  studentName,
+  sessionStartTime,
+  onSuccess
 }: SubmissionModalProps) {
+  const messageCount = messages.filter(m => m.role === "user").length
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -43,8 +53,31 @@ export function SubmissionModal({
     setError(null)
 
     try {
-      await onSubmit(reflection.trim())
+      // Submit to the API
+      const response = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekNumber,
+          messages,
+          studentName,
+          reflection: reflection.trim(),
+          sessionStartTime: sessionStartTime?.toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to submit")
+      }
+
       setIsSuccess(true)
+
+      // Call onSuccess callback to update progress
+      if (onSuccess) {
+        onSuccess()
+      }
+
       setTimeout(() => {
         onClose()
         setIsSuccess(false)

@@ -21,12 +21,30 @@ import {
   CheckCircle2,
   Circle,
   GraduationCap,
+  Lock,
+  Unlock,
+  ClipboardCheck,
+  Award,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SubmissionModal } from "@/components/submission-modal"
 import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
 import { cn } from "@/lib/utils"
 import { getSupabase } from "@/lib/supabase"
+import {
+  type StudentProgress,
+  createEmptyProgress,
+  loadProgress,
+  saveProgress,
+  isMidtermUnlocked,
+  isFinalUnlocked,
+  getLockedMessage,
+  getSubmissionWindowMessage,
+  isWithinSubmissionWindow,
+  updateWeekProgress,
+  MIN_EXCHANGES_FOR_COMPLETION,
+  getCompletionStats,
+} from "@/lib/progress-tracking"
 import type { Message as DBMessage, Json } from "@/lib/database.types"
 
 export interface Message {
@@ -128,11 +146,29 @@ export default function Home() {
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [breakReminderShown, setBreakReminderShown] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [studentProgress, setStudentProgress] = useState<StudentProgress | null>(null)
+  const [isMidtermMode, setIsMidtermMode] = useState(false)
+  const [midtermPhase, setMidtermPhase] = useState(1)
+  const [midtermPaperSections, setMidtermPaperSections] = useState<{
+    startingPoint?: string;
+    actI?: string;
+    actII?: string;
+    whyItMatters?: string;
+  }>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Calculate progress
-  const completedWeeks = new Set<number>()
-  const progress = Math.round((completedWeeks.size / weeksData.length) * 100)
+  // Calculate progress from studentProgress
+  const completedWeeks = new Set<number>(
+    studentProgress?.weeks.filter(w => w.completed).map(w => w.week) || []
+  )
+  const progress = studentProgress
+    ? Math.round((completedWeeks.size / (weeksData.length - 1)) * 100) // -1 because Week 1 is foundations
+    : 0
+
+  // Check if midterm/final are unlocked
+  const midtermUnlocked = studentProgress ? isMidtermUnlocked(studentProgress) : false
+  const finalUnlocked = studentProgress ? isFinalUnlocked(studentProgress) : false
+  const completionStats = studentProgress ? getCompletionStats(studentProgress) : null
 
   useEffect(() => {
     setMounted(true)
@@ -146,6 +182,18 @@ export default function Home() {
       setShowNameModal(true)
     }
   }, [])
+
+  // Load student progress from localStorage
+  useEffect(() => {
+    const saved = loadProgress()
+    if (saved) {
+      setStudentProgress(saved)
+    } else if (studentName) {
+      const newProgress = createEmptyProgress(studentName)
+      setStudentProgress(newProgress)
+      saveProgress(newProgress)
+    }
+  }, [studentName])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -213,44 +261,113 @@ export default function Home() {
       setIsLoading(true)
 
       try {
-        const weekInfo = weeksData.find((w) => w.week === selectedWeek)
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            conversationHistory: messages,
-            weekNumber: selectedWeek,
-            weekTopic: weekInfo?.topic || "",
-          }),
-        })
+        // Determine which API to use based on mode
+        if (isMidtermMode) {
+          // Midterm mode - use midterm API
+          const response = await fetch("/api/midterm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content,
+              conversationHistory: messages,
+              currentPhase: midtermPhase,
+              paperSections: midtermPaperSections,
+              studentName: studentName,
+            }),
+          })
 
-        const data = await response.json()
+          const data = await response.json()
 
-        // Check for error responses from the API
-        if (!response.ok || data.error) {
-          console.error("API error:", data.error, data.errorCode)
-          const errorMessage: Message = {
-            role: "assistant",
-            content: data.error || "Something went wrong. Please try again.",
+          if (!response.ok || data.error) {
+            console.error("Midterm API error:", data.error, data.errorCode)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: data.error || "Something went wrong. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
           }
-          setMessages((prev) => [...prev, errorMessage])
-          return
-        }
 
-        // Validate that we have a response
-        if (!data.response) {
-          console.error("Missing response in API data:", data)
-          const errorMessage: Message = {
-            role: "assistant",
-            content: "I didn't receive a proper response. Please try again.",
+          if (!data.response) {
+            console.error("Missing response in midterm API data:", data)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: "I didn't receive a proper response. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
           }
-          setMessages((prev) => [...prev, errorMessage])
-          return
-        }
 
-        const assistantMessage: Message = { role: "assistant", content: data.response }
-        setMessages((prev) => [...prev, assistantMessage])
+          const assistantMessage: Message = { role: "assistant", content: data.response }
+          setMessages((prev) => [...prev, assistantMessage])
+
+          // Update midterm progress in studentProgress
+          if (studentProgress) {
+            const updatedProgress = {
+              ...studentProgress,
+              midterm: {
+                ...studentProgress.midterm,
+                started: true,
+                lastSavedAt: new Date().toISOString(),
+              }
+            }
+            setStudentProgress(updatedProgress)
+            saveProgress(updatedProgress)
+          }
+        } else {
+          // Weekly conversation mode - use chat API
+          const weekInfo = weeksData.find((w) => w.week === selectedWeek)
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content,
+              conversationHistory: messages,
+              weekNumber: selectedWeek,
+              weekTopic: weekInfo?.topic || "",
+            }),
+          })
+
+          const data = await response.json()
+
+          // Check for error responses from the API
+          if (!response.ok || data.error) {
+            console.error("API error:", data.error, data.errorCode)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: data.error || "Something went wrong. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
+          }
+
+          // Validate that we have a response
+          if (!data.response) {
+            console.error("Missing response in API data:", data)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: "I didn't receive a proper response. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
+          }
+
+          const assistantMessage: Message = { role: "assistant", content: data.response }
+          setMessages((prev) => [...prev, assistantMessage])
+
+          // Track exchange count for progress (only for Weeks 2+)
+          if (studentProgress && selectedWeek >= 2) {
+            const currentExchangeCount = Math.floor((messages.length + 2) / 2) // +2 for user + assistant
+            const updatedProgress = updateWeekProgress(
+              studentProgress,
+              selectedWeek,
+              currentExchangeCount,
+              false // Don't auto-complete - will be done on submission
+            )
+            setStudentProgress(updatedProgress)
+            saveProgress(updatedProgress)
+          }
+        }
       } catch (error) {
         console.error("Error sending message:", error)
         // Provide more specific error messages
@@ -267,7 +384,7 @@ export default function Home() {
         setIsLoading(false)
       }
     },
-    [messages, selectedWeek, sessionStartTime]
+    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, studentName, studentProgress]
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -320,6 +437,149 @@ export default function Home() {
     triggerConfetti()
   }
 
+  // Midterm-specific PDF generation
+  const downloadMidtermPDF = (pdfStudentName: string, dateStr: string, fileDate: string) => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "letter"
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 25
+    const contentWidth = pageWidth - (margin * 2)
+    let yPosition = margin
+
+    // Helper function to add page number footer
+    const addFooter = (pageNum: number, totalPages: number) => {
+      doc.setFontSize(10)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Page ${pageNum} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 15,
+        { align: "center" }
+      )
+    }
+
+    // Helper function to check if we need a new page
+    const checkNewPage = (neededHeight: number) => {
+      if (yPosition + neededHeight > pageHeight - 30) {
+        doc.addPage()
+        yPosition = margin
+        return true
+      }
+      return false
+    }
+
+    // Title
+    doc.setFontSize(16)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont("helvetica", "bold")
+    doc.text("SLHS 303 MIDTERM PROJECT", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 8
+
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "normal")
+    doc.text("Speech and Hearing Science — CSU East Bay", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 12
+
+    // Student info
+    doc.setFontSize(11)
+    doc.text(`${pdfStudentName}`, pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 6
+    doc.text(dateStr, pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 12
+
+    // Divider
+    doc.setDrawColor(100, 100, 100)
+    doc.line(margin, yPosition, pageWidth - margin, yPosition)
+    yPosition += 15
+
+    // Extract paper sections from the conversation
+    // This is a simplified approach - the actual sections are built in the conversation
+    // For now, we'll format the conversation as a paper
+    const sections = [
+      { title: "Starting Point", content: midtermPaperSections.startingPoint },
+      { title: "Act I: Measurement Confounds", content: midtermPaperSections.actI },
+      { title: "Act II: Perception Under Noise", content: midtermPaperSections.actII },
+      { title: "Why It Matters", content: midtermPaperSections.whyItMatters },
+    ]
+
+    // If we have structured sections, use them
+    const hasSections = Object.values(midtermPaperSections).some(s => s && s.length > 0)
+
+    if (hasSections) {
+      sections.forEach((section, index) => {
+        if (section.content) {
+          checkNewPage(20)
+
+          // Section header
+          doc.setFontSize(12)
+          doc.setFont("helvetica", "bold")
+          doc.setTextColor(88, 28, 135) // Purple color
+          doc.text(section.title, margin, yPosition)
+          yPosition += 8
+
+          // Section content
+          doc.setFontSize(11)
+          doc.setFont("helvetica", "normal")
+          doc.setTextColor(40, 40, 40)
+
+          const lines = doc.splitTextToSize(section.content, contentWidth)
+          lines.forEach((line: string) => {
+            checkNewPage(6)
+            doc.text(line, margin, yPosition)
+            yPosition += 5.5
+          })
+
+          yPosition += 10 // Space between sections
+        }
+      })
+    } else {
+      // Fall back to conversation format if no structured sections
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "italic")
+      doc.setTextColor(100, 100, 100)
+      doc.text("Paper sections extracted from conversation:", margin, yPosition)
+      yPosition += 10
+
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(40, 40, 40)
+
+      // Filter to only assistant messages (the drafted sections)
+      const paperContent = messages
+        .filter(m => m.role === "assistant")
+        .map(m => m.content)
+        .join("\n\n")
+
+      const lines = doc.splitTextToSize(paperContent, contentWidth)
+      lines.forEach((line: string) => {
+        checkNewPage(6)
+        doc.text(line, margin, yPosition)
+        yPosition += 5.5
+      })
+    }
+
+    // Add page numbers to all pages
+    const totalPages = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      addFooter(i, totalPages)
+    }
+
+    // Generate filename
+    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
+    const filename = `SLHS303_Midterm_${sanitizedName}_${fileDate}.pdf`
+
+    // Download
+    doc.save(filename)
+
+    // Trigger confetti
+    triggerConfetti()
+  }
+
   const downloadPDF = () => {
     // Prompt for student name if not set or if they want to change it
     let pdfStudentName = studentName
@@ -341,7 +601,6 @@ export default function Home() {
       localStorage.setItem("slhs303_student_name", pdfStudentName)
     }
 
-    const weekInfo = weeksData.find((w) => w.week === selectedWeek)
     const now = new Date()
     const dateStr = now.toLocaleDateString("en-US", {
       year: "numeric",
@@ -349,6 +608,14 @@ export default function Home() {
       day: "numeric",
     })
     const fileDate = now.toISOString().split("T")[0].replace(/-/g, "")
+
+    // Handle midterm PDF differently
+    if (isMidtermMode) {
+      downloadMidtermPDF(pdfStudentName, dateStr, fileDate)
+      return
+    }
+
+    const weekInfo = weeksData.find((w) => w.week === selectedWeek)
 
     // Create PDF
     const doc = new jsPDF({
@@ -602,8 +869,101 @@ export default function Home() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  {completedWeeks.size} of {weeksData.length} weeks explored
+                  {completedWeeks.size} of {weeksData.length - 1} weeks completed
                 </p>
+              </motion.div>
+
+              {/* Midterm & Final Buttons */}
+              <motion.div
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={1.5}
+                className="rounded-2xl bg-white border border-amber-200/50 p-4 shadow-sm space-y-3"
+              >
+                <span className="text-sm font-medium text-gray-700">Assessments</span>
+
+                {/* Midterm Button */}
+                <button
+                  onClick={() => {
+                    if (midtermUnlocked) {
+                      setIsMidtermMode(true)
+                      setMessages([])
+                      setSidebarOpen(false)
+                    }
+                  }}
+                  disabled={!midtermUnlocked}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
+                    midtermUnlocked
+                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-lg shadow-purple-500/25"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  {midtermUnlocked ? (
+                    <ClipboardCheck className="w-5 h-5 shrink-0" />
+                  ) : (
+                    <Lock className="w-5 h-5 shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm">Midterm Project</p>
+                    <p className={cn(
+                      "text-xs truncate",
+                      midtermUnlocked ? "opacity-80" : "opacity-60"
+                    )}>
+                      {midtermUnlocked
+                        ? (studentProgress?.midterm.started
+                            ? `Phase ${studentProgress.midterm.currentPhase}/6 — Continue`
+                            : "Build your synthesis paper")
+                        : getLockedMessage('midterm', studentProgress || createEmptyProgress())}
+                    </p>
+                  </div>
+                  {completionStats && !midtermUnlocked && (
+                    <span className="text-xs font-medium shrink-0">
+                      {completionStats.midtermProgress}%
+                    </span>
+                  )}
+                </button>
+
+                {/* Final Button */}
+                <button
+                  onClick={() => {
+                    if (finalUnlocked) {
+                      // Final exam mode - similar to midterm but expanded scope
+                      // For now, show coming soon
+                      alert("Final Exam opens during Finals Week (May 11-16, 2026)")
+                    }
+                  }}
+                  disabled={!finalUnlocked}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
+                    finalUnlocked
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/25"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  {finalUnlocked ? (
+                    <Award className="w-5 h-5 shrink-0" />
+                  ) : (
+                    <Lock className="w-5 h-5 shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm">Final Exam</p>
+                    <p className={cn(
+                      "text-xs truncate",
+                      finalUnlocked ? "opacity-80" : "opacity-60"
+                    )}>
+                      {finalUnlocked
+                        ? "Complete course synthesis"
+                        : getLockedMessage('final', studentProgress || createEmptyProgress())}
+                    </p>
+                  </div>
+                  {completionStats && !finalUnlocked && (
+                    <span className="text-xs font-medium shrink-0">
+                      {completionStats.finalProgress}%
+                    </span>
+                  )}
+                </button>
               </motion.div>
 
               {/* Week Navigator */}
@@ -740,36 +1100,77 @@ export default function Home() {
               <Menu className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Critical Reasoning Mirror</h1>
+              <h1 className="text-lg font-bold text-gray-900">
+                {isMidtermMode ? "Midterm Project" : "Critical Reasoning Mirror"}
+              </h1>
               <p className="text-xs text-gray-500 hidden sm:block">
-                Week {selectedWeek}: {currentWeek?.topic}
+                {isMidtermMode
+                  ? `Phase ${midtermPhase}/6 — Building Your Synthesis Paper`
+                  : `Week ${selectedWeek}: ${currentWeek?.topic}`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadPDF}
-                disabled={messages.length === 0}
-                className="flex items-center gap-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-700 hover:text-amber-800 hover:border-amber-400 transition-all"
-              >
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Download PDF</span>
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                size="sm"
-                onClick={handleSubmitForGrading}
-                disabled={messages.length === 0}
-                className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-teal-500/25 transition-all"
-              >
-                <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">Submit</span>
-              </Button>
-            </motion.div>
+            {isMidtermMode ? (
+              <>
+                {/* Midterm mode buttons */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsMidtermMode(false)
+                      setMessages([])
+                      setMidtermPhase(1)
+                    }}
+                    className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exit Midterm</span>
+                  </Button>
+                </motion.div>
+                {midtermPhase === 6 && (
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      size="sm"
+                      onClick={downloadPDF}
+                      disabled={messages.length === 0}
+                      className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white shadow-md shadow-purple-500/25 transition-all"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download Paper</span>
+                    </Button>
+                  </motion.div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Weekly mode buttons */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadPDF}
+                    disabled={messages.length === 0}
+                    className="flex items-center gap-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-700 hover:text-amber-800 hover:border-amber-400 transition-all"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span className="hidden sm:inline">Download PDF</span>
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitForGrading}
+                    disabled={messages.length === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-teal-500/25 transition-all"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span className="hidden sm:inline">Submit</span>
+                  </Button>
+                </motion.div>
+              </>
+            )}
           </div>
         </motion.header>
 
@@ -784,59 +1185,104 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="flex flex-col items-center justify-center h-full text-center px-4"
               >
-                <div className="max-w-lg space-y-8">
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.3, type: "spring" }}
-                  >
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-teal-500/30">
-                      <Sparkles className="w-10 h-10 text-white" />
-                    </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                      Critical Reasoning Mirror
-                    </h2>
-                    <p className="text-gray-600 text-lg leading-relaxed">
-                      This tool reflects your thinking back to you so you can examine it.
-                      It's not a source of truth—it's a mirror for your reasoning about{" "}
-                      <span className="font-semibold text-teal-600">{currentWeek?.topic}</span>.
-                    </p>
-                  </motion.div>
+                {isMidtermMode ? (
+                  /* Midterm Welcome Screen */
+                  <div className="max-w-lg space-y-8">
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.3, type: "spring" }}
+                    >
+                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
+                        <ClipboardCheck className="w-10 h-10 text-white" />
+                      </div>
+                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                        Midterm Project
+                      </h2>
+                      <p className="text-gray-600 text-lg leading-relaxed mb-4">
+                        Over the next 60-90 minutes, we'll build your synthesis paper together.
+                        I'll ask questions to help you think through each section.
+                      </p>
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-left">
+                        <h3 className="font-semibold text-purple-900 mb-2">Your Paper Structure:</h3>
+                        <ul className="text-sm text-purple-800 space-y-1">
+                          <li>1. <strong>Starting Point</strong> — Your assumptions before this course</li>
+                          <li>2. <strong>Act I Concept</strong> — One concept from Weeks 3-5</li>
+                          <li>3. <strong>Act II Concept</strong> — One concept from Weeks 6-8</li>
+                          <li>4. <strong>Why It Matters</strong> — Clinical relevance</li>
+                        </ul>
+                      </div>
+                    </motion.div>
 
-                  <div className="space-y-3">
-                    {quickActions.map((action, index) => (
-                      <motion.button
-                        key={action.label}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.4 + index * 0.1 }}
-                        whileHover={{ scale: 1.02, x: 4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => sendMessage(action.message)}
-                        className={cn(
-                          "w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all",
-                          "bg-white border border-amber-200/50 shadow-sm hover:shadow-md",
-                          "group"
-                        )}
-                      >
-                        <div
+                    <motion.button
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => sendMessage("I'm ready to start the midterm.")}
+                      className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium shadow-lg shadow-purple-500/25 hover:from-purple-600 hover:to-indigo-600 transition-all"
+                    >
+                      <Sparkles className="w-5 h-5" />
+                      Begin Midterm Project
+                    </motion.button>
+                  </div>
+                ) : (
+                  /* Weekly Conversation Welcome Screen */
+                  <div className="max-w-lg space-y-8">
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.3, type: "spring" }}
+                    >
+                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-teal-500/30">
+                        <Sparkles className="w-10 h-10 text-white" />
+                      </div>
+                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                        Critical Reasoning Mirror
+                      </h2>
+                      <p className="text-gray-600 text-lg leading-relaxed">
+                        This tool reflects your thinking back to you so you can examine it.
+                        It's not a source of truth—it's a mirror for your reasoning about{" "}
+                        <span className="font-semibold text-teal-600">{currentWeek?.topic}</span>.
+                      </p>
+                    </motion.div>
+
+                    <div className="space-y-3">
+                      {quickActions.map((action, index) => (
+                        <motion.button
+                          key={action.label}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.4 + index * 0.1 }}
+                          whileHover={{ scale: 1.02, x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => sendMessage(action.message)}
                           className={cn(
-                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                            "bg-gradient-to-br shadow-lg transition-transform group-hover:scale-110",
-                            action.gradient
+                            "w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all",
+                            "bg-white border border-amber-200/50 shadow-sm hover:shadow-md",
+                            "group"
                           )}
                         >
-                          <action.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{action.label}</p>
-                          <p className="text-sm text-gray-500">Start a guided conversation</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </motion.button>
-                    ))}
+                          <div
+                            className={cn(
+                              "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+                              "bg-gradient-to-br shadow-lg transition-transform group-hover:scale-110",
+                              action.gradient
+                            )}
+                          >
+                            <action.icon className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{action.label}</p>
+                            <p className="text-sm text-gray-500">Start a guided conversation</p>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </motion.button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </motion.div>
             ) : (
               <>
@@ -987,6 +1433,21 @@ export default function Home() {
         weekNumber={selectedWeek}
         studentName={studentName}
         sessionStartTime={sessionStartTime}
+        onSuccess={() => {
+          // Mark the week as complete if it has enough exchanges
+          if (studentProgress && selectedWeek >= 2) {
+            const exchangeCount = Math.floor(messages.length / 2)
+            const meetsMinimum = exchangeCount >= MIN_EXCHANGES_FOR_COMPLETION
+            const updatedProgress = updateWeekProgress(
+              studentProgress,
+              selectedWeek,
+              exchangeCount,
+              meetsMinimum // Only mark complete if minimum is met
+            )
+            setStudentProgress(updatedProgress)
+            saveProgress(updatedProgress)
+          }
+        }}
       />
     </div>
   )
