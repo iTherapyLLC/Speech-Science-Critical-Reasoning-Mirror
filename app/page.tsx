@@ -556,18 +556,27 @@ export default function Home() {
                 <p className="text-sm opacity-80 mb-3">Act {currentAct?.number}: {currentAct?.title}</p>
 
                 <div className="bg-white/20 rounded-xl p-3 backdrop-blur-sm">
-                  <p className="text-sm font-medium mb-1">{currentWeek?.article.title}</p>
-                  <p className="text-xs opacity-80 mb-2">by {currentWeek?.article.author}</p>
-                  {currentWeek?.article.notebookLMLink && (
-                    <a
-                      href={currentWeek.article.notebookLMLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs bg-white/30 hover:bg-white/40 transition-colors rounded-lg px-3 py-1.5"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Open in NotebookLM
-                    </a>
+                  {currentWeek?.article ? (
+                    <>
+                      <p className="text-sm font-medium mb-1">{currentWeek.article.title}</p>
+                      <p className="text-xs opacity-80 mb-2">by {currentWeek.article.author}</p>
+                      {currentWeek.article.notebookLMLink && (
+                        <a
+                          href={currentWeek.article.notebookLMLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs bg-white/30 hover:bg-white/40 transition-colors rounded-lg px-3 py-1.5"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Open in NotebookLM
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium mb-1">Foundations Week</p>
+                      <p className="text-xs opacity-80">No article — building vocabulary and frameworks</p>
+                    </>
                   )}
                 </div>
               </motion.div>

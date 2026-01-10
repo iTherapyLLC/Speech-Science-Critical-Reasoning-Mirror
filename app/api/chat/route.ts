@@ -11,7 +11,7 @@ const MAX_CONVERSATION_TURNS = 50;
 // Input validation limits
 const MAX_MESSAGE_LENGTH = 10000; // 10k characters per message
 const MAX_HISTORY_LENGTH = 100; // Max messages in history
-const MAX_WEEK_NUMBER = 15;
+const MAX_WEEK_NUMBER = 16;
 
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
@@ -235,6 +235,58 @@ If a student hasn't engaged with the materials:
 - Don't pretend the conversation can proceed without them
 - "It sounds like you might not have had a chance to go through the article yet. That's okay—but the conversation works best when you come with some initial understanding to build on. What resources have you used so far this week?"`;
 
+    // Week 1 Foundations content - no article, focus on vocabulary and frameworks
+    const week1Content = `
+
+WEEK 1: FOUNDATIONS & ORIENTATION
+This is the foundation week. No article, no graded assignment. Students build vocabulary and conceptual framework for everything that follows.
+
+THE CENTRAL QUESTION
+What has to be true for linguistic communication to be worth the energy?
+
+This question frames the entire course. Linguistic communication is expensive—it requires mapping abstract thoughts onto arbitrary symbols, sequencing them syntactically, executing complex motor plans, and hoping the listener decodes correctly. Direct action is often cheaper. Every week answers part of this question.
+
+SOURCE-FILTER THEORY (The unifying framework)
+- Source: Vocal folds vibrate, producing F0 (fundamental frequency) + harmonics
+- Filter: Vocal tract shapes the sound through resonance, creating formants
+- "Language is the song, speech is the instrument"
+- The source generates raw material; the filter shapes it into meaning
+
+KEY ACOUSTIC CONCEPTS TO EXPLORE
+| Concept | Definition |
+|---------|------------|
+| Frequency | Cycles per second (Hz); correlates with pitch |
+| Amplitude | Magnitude of pressure change; correlates with loudness |
+| Periodic | Sound with repeating pattern |
+| Aperiodic | Sound without repeating pattern |
+| F0 | Fundamental frequency; rate of vocal fold vibration |
+| Harmonics | Whole-number multiples of F0 |
+| Formants | Resonant frequencies of vocal tract |
+| F1 | First formant; inversely correlates with tongue height |
+| F2 | Second formant; correlates with tongue advancement |
+| Spectrogram | Visual representation of frequency over time |
+
+SHANNON-WEAVER COMMUNICATION MODEL
+A diagnostic framework for understanding communication breakdown:
+- Information source → Transmitter → Channel → Receiver → Destination
+- Noise can enter at any point
+- Every communication disorder is a breakdown somewhere in this chain
+
+FOR WEEK 1 CONVERSATIONS:
+- Help students explore these foundational concepts
+- Use analogies to connect to their existing knowledge
+- No article to discuss—focus on building vocabulary and frameworks
+- Ask: "What does sound actually IS?" "How does it become speech?"
+- Connect everything back to the central question
+
+WEEK 1 PARTIAL ANSWER TO THE CENTRAL QUESTION:
+We must understand what sound IS and how it becomes speech. The vocal folds create a source, the vocal tract creates a filter, and together they produce the acoustic signal that carries meaning. Before we can study what goes wrong, we must understand what goes right.`;
+
+    // Add Week 1 content if it's the foundations week
+    const fullSystemPrompt = parsedWeekNumber === 1
+      ? systemPrompt + week1Content
+      : systemPrompt;
+
     const messages = [
       ...conversationHistory.map((msg: { role: string; content: string }) => ({
         role: msg.role,
@@ -269,7 +321,7 @@ If a student hasn't engaged with the materials:
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 2048,
-          system: systemPrompt,
+          system: fullSystemPrompt,
           messages: messages,
         }),
         signal: controller.signal,

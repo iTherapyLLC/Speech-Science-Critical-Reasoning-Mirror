@@ -1,39 +1,45 @@
 export const acts = [
   {
+    number: "Foundations",
+    title: "Foundations & Orientation",
+    description: "Building vocabulary and frameworks for everything that follows.",
+    weeks: "1",
+  },
+  {
     number: "I",
     title: "Measurement & Evidence",
     description: "Before we trust data, we learn how data misleads.",
-    weeks: "1-4",
+    weeks: "2-5",
   },
   {
     number: "II",
     title: "Hearing & Perception Under Noise",
     description: "The signal is never clean.",
-    weeks: "5-7",
+    weeks: "6-8",
   },
   {
     number: "III",
     title: "Voice as a Measured System",
     description: "What does 'voice quality' actually mean?",
-    weeks: "8-9",
+    weeks: "9-10",
   },
   {
     number: "IV",
     title: "Articulation & Timing",
     description: "Speech is dynamic, not static.",
-    weeks: "10-12",
+    weeks: "11-13",
   },
   {
     number: "V",
     title: "Resonance & Filter Interactions",
     description: "The filter changes the source.",
-    weeks: "13",
+    weeks: "14",
   },
   {
     number: "VI",
     title: "Integration & Professional Practice",
     description: "Connecting science to clinical responsibility.",
-    weeks: "14-15",
+    weeks: "15",
   },
 ]
 
@@ -48,17 +54,27 @@ export interface WeekData {
   topic: string
   teaser: string
   act: string
-  article: {
+  article?: {
     title: string
     author: string
     notebookLMLink?: string
   }
+  isFoundationWeek?: boolean
 }
 
 export const weeksData: WeekData[] = [
-  // Act I: Measurement & Evidence
+  // Foundations
   {
     week: 1,
+    topic: "Foundations & Orientation",
+    teaser: "Building vocabulary and frameworks",
+    act: "Foundations",
+    isFoundationWeek: true,
+    // No article - this is the setup week
+  },
+  // Act I: Measurement & Evidence
+  {
+    week: 2,
     topic: "Evidence vs. Opinion",
     teaser: "What counts as evidence?",
     act: "I",
@@ -69,7 +85,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 2,
+    week: 3,
     topic: "Acoustic Perturbation Measures",
     teaser: "Jitter, shimmer, and their confounds",
     act: "I",
@@ -80,7 +96,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 3,
+    week: 4,
     topic: "Reverberation & Measurement Stability",
     teaser: "Environment as confound",
     act: "I",
@@ -91,7 +107,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 4,
+    week: 5,
     topic: "Software Comparability",
     teaser: "Tools disagree with each other",
     act: "I",
@@ -103,7 +119,7 @@ export const weeksData: WeekData[] = [
   },
   // Act II: Hearing & Perception Under Noise
   {
-    week: 5,
+    week: 6,
     topic: "Noise vs. Speech Masking",
     teaser: "Different noise, different interference",
     act: "II",
@@ -114,7 +130,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 6,
+    week: 7,
     topic: "Context in Speech-in-Noise",
     teaser: "How expectations shape perception",
     act: "II",
@@ -125,7 +141,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 7,
+    week: 8,
     topic: "Categorical Perception Revisited",
     teaser: "Boundaries are gradients, not walls",
     act: "II",
@@ -137,7 +153,7 @@ export const weeksData: WeekData[] = [
   },
   // Act III: Voice as a Measured System
   {
-    week: 8,
+    week: 9,
     topic: "Acoustic Voice Quality Meta-analysis",
     teaser: "What predicts perceived quality?",
     act: "III",
@@ -148,7 +164,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 9,
+    week: 10,
     topic: "AVQI Validity",
     teaser: "Can one index capture voice?",
     act: "III",
@@ -160,7 +176,7 @@ export const weeksData: WeekData[] = [
   },
   // Act IV: Articulation & Timing
   {
-    week: 10,
+    week: 11,
     topic: "Vowels in Developing & Disordered Speech",
     teaser: "Formants as clinical markers",
     act: "IV",
@@ -171,7 +187,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 11,
+    week: 12,
     topic: "VOT & Phonetic Timing",
     teaser: "Milliseconds matter",
     act: "IV",
@@ -182,7 +198,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 12,
+    week: 13,
     topic: "Categorization Consistency",
     teaser: "How reliably do we classify speech sounds?",
     act: "IV",
@@ -194,7 +210,7 @@ export const weeksData: WeekData[] = [
   },
   // Act V: Resonance & Filter Interactions
   {
-    week: 13,
+    week: 14,
     topic: "Nasalance Effects on CPP",
     teaser: "When resonance affects phonation measures",
     act: "V",
@@ -206,7 +222,7 @@ export const weeksData: WeekData[] = [
   },
   // Act VI: Integration & Professional Practice
   {
-    week: 14,
+    week: 15,
     topic: "High-Quality Acoustic Analysis",
     teaser: "Best practices for clinical measurement",
     act: "VI",
@@ -217,7 +233,7 @@ export const weeksData: WeekData[] = [
     },
   },
   {
-    week: 15,
+    week: 16,
     topic: "ASHA 2020 Certification Standards",
     teaser: "What the profession expects of you",
     act: "VI",
