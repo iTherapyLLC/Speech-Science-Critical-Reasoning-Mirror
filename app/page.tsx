@@ -155,6 +155,16 @@ export default function Home() {
     actII?: string;
     whyItMatters?: string;
   }>({})
+  const [isFinalMode, setIsFinalMode] = useState(false)
+  const [finalPhase, setFinalPhase] = useState(1)
+  const [finalPaperSections, setFinalPaperSections] = useState<{
+    openingReflection?: string;
+    actI?: string;
+    actII?: string;
+    actIII?: string;
+    actIV?: string;
+    centralQuestion?: string;
+  }>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress from studentProgress
@@ -262,7 +272,59 @@ export default function Home() {
 
       try {
         // Determine which API to use based on mode
-        if (isMidtermMode) {
+        if (isFinalMode) {
+          // Final exam mode - use final API
+          const response = await fetch("/api/final", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content,
+              conversationHistory: messages,
+              currentPhase: finalPhase,
+              paperSections: finalPaperSections,
+              studentName: studentName,
+            }),
+          })
+
+          const data = await response.json()
+
+          if (!response.ok || data.error) {
+            console.error("Final API error:", data.error, data.errorCode)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: data.error || "Something went wrong. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
+          }
+
+          if (!data.response) {
+            console.error("Missing response in final API data:", data)
+            const errorMessage: Message = {
+              role: "assistant",
+              content: "I didn't receive a proper response. Please try again.",
+            }
+            setMessages((prev) => [...prev, errorMessage])
+            return
+          }
+
+          const assistantMessage: Message = { role: "assistant", content: data.response }
+          setMessages((prev) => [...prev, assistantMessage])
+
+          // Update final progress in studentProgress
+          if (studentProgress) {
+            const updatedProgress = {
+              ...studentProgress,
+              final: {
+                ...studentProgress.final,
+                started: true,
+                lastSavedAt: new Date().toISOString(),
+              }
+            }
+            setStudentProgress(updatedProgress)
+            saveProgress(updatedProgress)
+          }
+        } else if (isMidtermMode) {
           // Midterm mode - use midterm API
           const response = await fetch("/api/midterm", {
             method: "POST",
@@ -384,7 +446,7 @@ export default function Home() {
         setIsLoading(false)
       }
     },
-    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, studentName, studentProgress]
+    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, isFinalMode, finalPhase, finalPaperSections, studentName, studentProgress]
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -580,6 +642,149 @@ export default function Home() {
     triggerConfetti()
   }
 
+  // Final Exam-specific PDF generation
+  const downloadFinalPDF = (pdfStudentName: string, dateStr: string, fileDate: string) => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "letter"
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 25
+    const contentWidth = pageWidth - (margin * 2)
+    let yPosition = margin
+
+    // Helper function to add page number footer
+    const addFooter = (pageNum: number, totalPages: number) => {
+      doc.setFontSize(10)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Page ${pageNum} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 15,
+        { align: "center" }
+      )
+    }
+
+    // Helper function to check if we need a new page
+    const checkNewPage = (neededHeight: number) => {
+      if (yPosition + neededHeight > pageHeight - 30) {
+        doc.addPage()
+        yPosition = margin
+        return true
+      }
+      return false
+    }
+
+    // Title
+    doc.setFontSize(16)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont("helvetica", "bold")
+    doc.text("SLHS 303 FINAL EXAM", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 8
+
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "normal")
+    doc.text("Speech and Hearing Science — CSU East Bay", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 12
+
+    // Student info
+    doc.setFontSize(11)
+    doc.text(`${pdfStudentName}`, pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 6
+    doc.text(dateStr, pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 12
+
+    // Divider
+    doc.setDrawColor(100, 100, 100)
+    doc.line(margin, yPosition, pageWidth - margin, yPosition)
+    yPosition += 15
+
+    // Extract paper sections from the conversation
+    const sections = [
+      { title: "Opening Reflection", content: finalPaperSections.openingReflection },
+      { title: "Act I: Measurement Confounds", content: finalPaperSections.actI },
+      { title: "Act II: Perception Under Noise", content: finalPaperSections.actII },
+      { title: "Act III: Voice & Phonation", content: finalPaperSections.actIII },
+      { title: "Act IV: Articulation & Motor Control", content: finalPaperSections.actIV },
+      { title: "Central Question: Why Speech is Worth the Energy", content: finalPaperSections.centralQuestion },
+    ]
+
+    // If we have structured sections, use them
+    const hasSections = Object.values(finalPaperSections).some(s => s && s.length > 0)
+
+    if (hasSections) {
+      sections.forEach((section) => {
+        if (section.content) {
+          checkNewPage(20)
+
+          // Section header
+          doc.setFontSize(12)
+          doc.setFont("helvetica", "bold")
+          doc.setTextColor(217, 119, 6) // Amber color
+          doc.text(section.title, margin, yPosition)
+          yPosition += 8
+
+          // Section content
+          doc.setFontSize(11)
+          doc.setFont("helvetica", "normal")
+          doc.setTextColor(40, 40, 40)
+
+          const lines = doc.splitTextToSize(section.content, contentWidth)
+          lines.forEach((line: string) => {
+            checkNewPage(6)
+            doc.text(line, margin, yPosition)
+            yPosition += 5.5
+          })
+
+          yPosition += 10 // Space between sections
+        }
+      })
+    } else {
+      // Fall back to conversation format if no structured sections
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "italic")
+      doc.setTextColor(100, 100, 100)
+      doc.text("Paper sections extracted from conversation:", margin, yPosition)
+      yPosition += 10
+
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(40, 40, 40)
+
+      // Filter to only assistant messages (the drafted sections)
+      const paperContent = messages
+        .filter(m => m.role === "assistant")
+        .map(m => m.content)
+        .join("\n\n")
+
+      const lines = doc.splitTextToSize(paperContent, contentWidth)
+      lines.forEach((line: string) => {
+        checkNewPage(6)
+        doc.text(line, margin, yPosition)
+        yPosition += 5.5
+      })
+    }
+
+    // Add page numbers to all pages
+    const totalPages = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      addFooter(i, totalPages)
+    }
+
+    // Generate filename
+    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
+    const filename = `SLHS303_Final_${sanitizedName}_${fileDate}.pdf`
+
+    // Download
+    doc.save(filename)
+
+    // Trigger confetti
+    triggerConfetti()
+  }
+
   const downloadPDF = () => {
     // Prompt for student name if not set or if they want to change it
     let pdfStudentName = studentName
@@ -608,6 +813,12 @@ export default function Home() {
       day: "numeric",
     })
     const fileDate = now.toISOString().split("T")[0].replace(/-/g, "")
+
+    // Handle final exam PDF differently
+    if (isFinalMode) {
+      downloadFinalPDF(pdfStudentName, dateStr, fileDate)
+      return
+    }
 
     // Handle midterm PDF differently
     if (isMidtermMode) {
@@ -929,9 +1140,10 @@ export default function Home() {
                 <button
                   onClick={() => {
                     if (finalUnlocked) {
-                      // Final exam mode - similar to midterm but expanded scope
-                      // For now, show coming soon
-                      alert("Final Exam opens during Finals Week (May 11-16, 2026)")
+                      setIsFinalMode(true)
+                      setIsMidtermMode(false)
+                      setMessages([])
+                      setSidebarOpen(false)
                     }
                   }}
                   disabled={!finalUnlocked}
@@ -954,7 +1166,9 @@ export default function Home() {
                       finalUnlocked ? "opacity-80" : "opacity-60"
                     )}>
                       {finalUnlocked
-                        ? "Complete course synthesis"
+                        ? (studentProgress?.final.started
+                            ? `Phase ${studentProgress.final.currentPhase}/8 — Continue`
+                            : "Complete course synthesis")
                         : getLockedMessage('final', studentProgress || createEmptyProgress())}
                     </p>
                   </div>
@@ -1101,17 +1315,51 @@ export default function Home() {
             </Button>
             <div>
               <h1 className="text-lg font-bold text-gray-900">
-                {isMidtermMode ? "Midterm Project" : "Critical Reasoning Mirror"}
+                {isFinalMode ? "Final Exam" : isMidtermMode ? "Midterm Project" : "Critical Reasoning Mirror"}
               </h1>
               <p className="text-xs text-gray-500 hidden sm:block">
-                {isMidtermMode
-                  ? `Phase ${midtermPhase}/6 — Building Your Synthesis Paper`
-                  : `Week ${selectedWeek}: ${currentWeek?.topic}`}
+                {isFinalMode
+                  ? `Phase ${finalPhase}/8 — Course Synthesis`
+                  : isMidtermMode
+                    ? `Phase ${midtermPhase}/6 — Building Your Synthesis Paper`
+                    : `Week ${selectedWeek}: ${currentWeek?.topic}`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isMidtermMode ? (
+            {isFinalMode ? (
+              <>
+                {/* Final exam mode buttons */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsFinalMode(false)
+                      setMessages([])
+                      setFinalPhase(1)
+                    }}
+                    className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exit Final</span>
+                  </Button>
+                </motion.div>
+                {finalPhase === 8 && (
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      size="sm"
+                      onClick={downloadPDF}
+                      disabled={messages.length === 0}
+                      className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/25 transition-all"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download Paper</span>
+                    </Button>
+                  </motion.div>
+                )}
+              </>
+            ) : isMidtermMode ? (
               <>
                 {/* Midterm mode buttons */}
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -1185,7 +1433,51 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="flex flex-col items-center justify-center h-full text-center px-4"
               >
-                {isMidtermMode ? (
+                {isFinalMode ? (
+                  /* Final Exam Welcome Screen */
+                  <div className="max-w-lg space-y-8">
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.3, type: "spring" }}
+                    >
+                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-xl shadow-amber-500/30">
+                        <Award className="w-10 h-10 text-white" />
+                      </div>
+                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                        Final Exam
+                      </h2>
+                      <p className="text-gray-600 text-lg leading-relaxed mb-4">
+                        Over the next 90-120 minutes, we'll build your complete course synthesis paper together.
+                        This paper integrates everything from across all four acts.
+                      </p>
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+                        <h3 className="font-semibold text-amber-900 mb-2">Your Paper Structure (4-5 pages):</h3>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li>1. <strong>Opening Reflection</strong> — Your assumptions before this course</li>
+                          <li>2. <strong>Act I Insight</strong> — Measurement Confounds (Weeks 3-5)</li>
+                          <li>3. <strong>Act II Insight</strong> — Perception Under Noise (Weeks 6-8)</li>
+                          <li>4. <strong>Act III Insight</strong> — Voice & Phonation (Weeks 10-12)</li>
+                          <li>5. <strong>Act IV Insight</strong> — Articulation & Motor Control (Weeks 13-15)</li>
+                          <li>6. <strong>Central Question</strong> — Why speech is worth the energy</li>
+                        </ul>
+                      </div>
+                    </motion.div>
+
+                    <motion.button
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => sendMessage("I'm ready to start the final exam.")}
+                      className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium shadow-lg shadow-amber-500/25 hover:from-amber-600 hover:to-orange-600 transition-all"
+                    >
+                      <Sparkles className="w-5 h-5" />
+                      Begin Final Exam
+                    </motion.button>
+                  </div>
+                ) : isMidtermMode ? (
                   /* Midterm Welcome Screen */
                   <div className="max-w-lg space-y-8">
                     <motion.div
