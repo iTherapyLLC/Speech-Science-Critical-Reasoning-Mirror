@@ -553,7 +553,7 @@ export default function Home() {
                   <span className="text-sm font-medium opacity-90">This Week's Focus</span>
                 </div>
                 <h3 className="font-bold text-lg mb-1">Week {selectedWeek}: {currentWeek?.topic}</h3>
-                <p className="text-sm opacity-80 mb-3">Act {currentAct?.number}: {currentAct?.title}</p>
+                <p className="text-sm opacity-80 mb-3">{(currentAct as any)?.displayLabel || `Act ${currentAct?.number}: ${currentAct?.title}`}</p>
 
                 <div className="bg-white/20 rounded-xl p-3 backdrop-blur-sm">
                   {currentWeek?.article ? (
@@ -636,10 +636,9 @@ export default function Home() {
                               <ChevronRight className="w-4 h-4 text-gray-400" />
                             </motion.div>
                             <span className="text-sm font-medium text-gray-700">
-                              Act {act.number}
+                              {act.displayLabel}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">{act.title}</span>
                         </button>
                         <AnimatePresence>
                           {isExpanded && (

@@ -11,7 +11,7 @@ const MAX_CONVERSATION_TURNS = 50;
 // Input validation limits
 const MAX_MESSAGE_LENGTH = 10000; // 10k characters per message
 const MAX_HISTORY_LENGTH = 100; // Max messages in history
-const MAX_WEEK_NUMBER = 16;
+const MAX_WEEK_NUMBER = 15;
 
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);

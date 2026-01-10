@@ -1,45 +1,45 @@
 export const acts = [
   {
     number: "Foundations",
-    title: "Foundations & Orientation",
+    title: "Foundations",
     description: "Building vocabulary and frameworks for everything that follows.",
-    weeks: "1",
+    weeks: "1-2",
+    displayLabel: "Foundations",
   },
   {
     number: "I",
-    title: "Measurement & Evidence",
+    title: "Measurement Confounds",
     description: "Before we trust data, we learn how data misleads.",
-    weeks: "2-5",
+    weeks: "3-5",
+    displayLabel: "Act I: Measurement Confounds",
   },
   {
     number: "II",
-    title: "Hearing & Perception Under Noise",
+    title: "Perception Under Noise",
     description: "The signal is never clean.",
     weeks: "6-8",
+    displayLabel: "Act II: Perception Under Noise",
   },
   {
     number: "III",
-    title: "Voice as a Measured System",
+    title: "Voice & Phonation",
     description: "What does 'voice quality' actually mean?",
-    weeks: "9-10",
+    weeks: "9-11",
+    displayLabel: "Act III: Voice & Phonation",
   },
   {
     number: "IV",
-    title: "Articulation & Timing",
+    title: "Articulation & Motor Control",
     description: "Speech is dynamic, not static.",
-    weeks: "11-13",
+    weeks: "12-14",
+    displayLabel: "Act IV: Articulation & Motor Control",
   },
   {
-    number: "V",
-    title: "Resonance & Filter Interactions",
-    description: "The filter changes the source.",
-    weeks: "14",
-  },
-  {
-    number: "VI",
-    title: "Integration & Professional Practice",
+    number: "Finale",
+    title: "Course Finale",
     description: "Connecting science to clinical responsibility.",
     weeks: "15",
+    displayLabel: "Course Finale",
   },
 ]
 
@@ -63,7 +63,7 @@ export interface WeekData {
 }
 
 export const weeksData: WeekData[] = [
-  // Foundations
+  // Foundations (Weeks 1-2)
   {
     week: 1,
     topic: "Foundations & Orientation",
@@ -72,18 +72,18 @@ export const weeksData: WeekData[] = [
     isFoundationWeek: true,
     // No article - this is the setup week
   },
-  // Act I: Measurement & Evidence
   {
     week: 2,
-    topic: "Evidence vs. Opinion",
+    topic: "Evidence-Based Practice",
     teaser: "What counts as evidence?",
-    act: "I",
+    act: "Foundations",
     article: {
       title: "Evidence-Based Practice in Speech-Language Pathology",
       author: "Greenwell",
       notebookLMLink: "https://notebooklm.google.com/notebook/9f12f740-3844-4c4c-86a8-a9b12c477d5a",
     },
   },
+  // Act I: Measurement Confounds (Weeks 3-5)
   {
     week: 3,
     topic: "Acoustic Perturbation Measures",
@@ -117,7 +117,7 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/ad2b1c00-e15d-411a-9930-d75141a1ccfb",
     },
   },
-  // Act II: Hearing & Perception Under Noise
+  // Act II: Perception Under Noise (Weeks 6-8)
   {
     week: 6,
     topic: "Noise vs. Speech Masking",
@@ -151,7 +151,7 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/50dceb54-5b42-4766-9f6a-6c0b4ae5d5d4",
     },
   },
-  // Act III: Voice as a Measured System
+  // Act III: Voice & Phonation (Weeks 9-11)
   {
     week: 9,
     topic: "Acoustic Voice Quality Meta-analysis",
@@ -174,18 +174,18 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/c1979f7d-5d31-4db8-8cff-7ab835c10b0b",
     },
   },
-  // Act IV: Articulation & Timing
   {
     week: 11,
     topic: "Vowels in Developing & Disordered Speech",
     teaser: "Formants as clinical markers",
-    act: "IV",
+    act: "III",
     article: {
       title: "What Acoustic Studies Tell Us About Vowels in Developing and Disordered Speech",
       author: "Kent",
       notebookLMLink: "https://notebooklm.google.com/notebook/ba082bbe-270a-4975-bf45-c6233424f6fb",
     },
   },
+  // Act IV: Articulation & Motor Control (Weeks 12-14)
   {
     week: 12,
     topic: "VOT & Phonetic Timing",
@@ -208,39 +208,27 @@ export const weeksData: WeekData[] = [
       notebookLMLink: "https://notebooklm.google.com/notebook/4b4c1a43-08fc-456d-ae93-05b4c643020f",
     },
   },
-  // Act V: Resonance & Filter Interactions
   {
     week: 14,
     topic: "Nasalance Effects on CPP",
     teaser: "When resonance affects phonation measures",
-    act: "V",
+    act: "IV",
     article: {
       title: "The Impact of Nasalance on Cepstral Peak Prominence and HNR",
       author: "Madill",
       notebookLMLink: "https://notebooklm.google.com/notebook/dc093f57-06d2-4420-a9c5-5064e7f7ef90",
     },
   },
-  // Act VI: Integration & Professional Practice
+  // Course Finale (Week 15)
   {
     week: 15,
     topic: "High-Quality Acoustic Analysis",
     teaser: "Best practices for clinical measurement",
-    act: "VI",
+    act: "Finale",
     article: {
       title: "Conducting High-Quality and Reliable Acoustic Analysis",
       author: "Murray",
       notebookLMLink: "https://notebooklm.google.com/notebook/e0211310-4d37-4f1a-a41a-e2140f591e90",
-    },
-  },
-  {
-    week: 16,
-    topic: "ASHA 2020 Certification Standards",
-    teaser: "What the profession expects of you",
-    act: "VI",
-    article: {
-      title: "2020 Standards for the Certificate of Clinical Competence in SLP",
-      author: "ASHA/CFCC",
-      notebookLMLink: "https://notebooklm.google.com/notebook/abd253c5-0757-4c97-83b9-6f257e6b9501",
     },
   },
 ]
