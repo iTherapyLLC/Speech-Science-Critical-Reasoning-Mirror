@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import confetti from "canvas-confetti"
+import { jsPDF } from "jspdf"
 import {
   Download,
+  FileText,
   Menu,
   X,
   ChevronDown,
@@ -313,6 +315,161 @@ export default function Home() {
     triggerConfetti()
   }
 
+  const downloadPDF = () => {
+    // Prompt for student name if not set or if they want to change it
+    let pdfStudentName = studentName
+    const enteredName = window.prompt(
+      "Enter your name for the PDF (this will appear in the header):",
+      studentName || ""
+    )
+
+    if (enteredName === null) {
+      // User cancelled
+      return
+    }
+
+    pdfStudentName = enteredName.trim() || "Student"
+
+    // Update stored name if changed
+    if (pdfStudentName !== studentName) {
+      setStudentName(pdfStudentName)
+      localStorage.setItem("slhs303_student_name", pdfStudentName)
+    }
+
+    const weekInfo = weeksData.find((w) => w.week === selectedWeek)
+    const now = new Date()
+    const dateStr = now.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+    const fileDate = now.toISOString().split("T")[0].replace(/-/g, "")
+
+    // Create PDF
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "letter"
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 20
+    const contentWidth = pageWidth - (margin * 2)
+    let yPosition = margin
+
+    // Helper function to add page number footer
+    const addFooter = (pageNum: number, totalPages: number) => {
+      doc.setFontSize(10)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Page ${pageNum} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      )
+    }
+
+    // Helper function to check if we need a new page
+    const checkNewPage = (neededHeight: number) => {
+      if (yPosition + neededHeight > pageHeight - 25) {
+        doc.addPage()
+        yPosition = margin
+        return true
+      }
+      return false
+    }
+
+    // Header
+    doc.setFontSize(18)
+    doc.setTextColor(13, 148, 136) // Teal color
+    doc.setFont("helvetica", "bold")
+    doc.text("SLHS 303: Speech and Hearing Science", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 8
+
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Critical Reasoning Mirror - Conversation Transcript", pageWidth / 2, yPosition, { align: "center" })
+    yPosition += 12
+
+    // Student info box
+    doc.setFillColor(240, 253, 250) // Light teal background
+    doc.setDrawColor(13, 148, 136)
+    doc.roundedRect(margin, yPosition, contentWidth, 28, 3, 3, "FD")
+
+    yPosition += 7
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Student: ${pdfStudentName}`, margin + 5, yPosition)
+
+    yPosition += 6
+    doc.setFont("helvetica", "normal")
+    doc.text(`Week ${selectedWeek}: ${weekInfo?.topic || ""}`, margin + 5, yPosition)
+
+    yPosition += 6
+    doc.text(`Date: ${dateStr}`, margin + 5, yPosition)
+
+    yPosition += 6
+    doc.text(`Course: SLHS 303 - CSU East Bay`, margin + 5, yPosition)
+
+    yPosition += 12
+
+    // Divider line
+    doc.setDrawColor(200, 200, 200)
+    doc.line(margin, yPosition, pageWidth - margin, yPosition)
+    yPosition += 10
+
+    // Conversation content
+    doc.setFontSize(10)
+
+    messages.forEach((msg) => {
+      const label = msg.role === "user" ? "Student:" : "Mirror:"
+      const labelColor = msg.role === "user" ? [13, 148, 136] : [107, 114, 128] // Teal for student, gray for mirror
+
+      // Calculate text height for this message
+      const lines = doc.splitTextToSize(msg.content, contentWidth - 15)
+      const textHeight = lines.length * 5 + 12
+
+      checkNewPage(textHeight)
+
+      // Label
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(labelColor[0], labelColor[1], labelColor[2])
+      doc.text(label, margin, yPosition)
+      yPosition += 5
+
+      // Message content
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(60, 60, 60)
+
+      lines.forEach((line: string) => {
+        checkNewPage(6)
+        doc.text(line, margin + 5, yPosition)
+        yPosition += 5
+      })
+
+      yPosition += 7 // Space between messages
+    })
+
+    // Add page numbers to all pages
+    const totalPages = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      addFooter(i, totalPages)
+    }
+
+    // Generate filename: SLHS303_Week[X]_[StudentName]_[Date].pdf
+    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
+    const filename = `SLHS303_Week${selectedWeek}_${sanitizedName}_${fileDate}.pdf`
+
+    // Download
+    doc.save(filename)
+
+    // Trigger confetti
+    triggerConfetti()
+  }
+
   const handleSubmitForGrading = () => {
     setShowSubmissionModal(true)
   }
@@ -581,12 +738,12 @@ export default function Home() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={exportConversation}
+                onClick={downloadPDF}
                 disabled={messages.length === 0}
-                className="flex items-center gap-2 bg-white hover:bg-teal-50 border-teal-200 text-teal-700 hover:text-teal-800 hover:border-teal-300 transition-all"
+                className="flex items-center gap-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-700 hover:text-amber-800 hover:border-amber-400 transition-all"
               >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Download PDF</span>
               </Button>
             </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
