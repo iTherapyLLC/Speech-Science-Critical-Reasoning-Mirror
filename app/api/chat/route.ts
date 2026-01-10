@@ -8,15 +8,75 @@ const API_TIMEOUT_MS = 90000;
 // Maximum conversation turns before warning (each turn = user + assistant message)
 const MAX_CONVERSATION_TURNS = 50;
 
+// Input validation limits
+const MAX_MESSAGE_LENGTH = 10000; // 10k characters per message
+const MAX_HISTORY_LENGTH = 100; // Max messages in history
+const MAX_WEEK_NUMBER = 15;
+
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
   console.log(`[${requestId}] Chat API request received`);
 
   try {
-    const { message, conversationHistory = [], weekNumber = 1, weekTopic = "Evidence vs. Opinion" } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({
+        error: 'Invalid request body',
+        errorCode: 'INVALID_JSON'
+      }, { status: 400 });
+    }
+
+    const { message, conversationHistory = [], weekNumber = 1, weekTopic = "Evidence vs. Opinion" } = body;
+
+    // Input validation
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json({
+        error: 'Message is required and must be a string',
+        errorCode: 'INVALID_MESSAGE'
+      }, { status: 400 });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json({
+        error: `Message is too long. Please keep messages under ${MAX_MESSAGE_LENGTH.toLocaleString()} characters.`,
+        errorCode: 'MESSAGE_TOO_LONG'
+      }, { status: 400 });
+    }
+
+    if (message.trim().length === 0) {
+      return NextResponse.json({
+        error: 'Message cannot be empty',
+        errorCode: 'EMPTY_MESSAGE'
+      }, { status: 400 });
+    }
+
+    if (!Array.isArray(conversationHistory)) {
+      return NextResponse.json({
+        error: 'Conversation history must be an array',
+        errorCode: 'INVALID_HISTORY'
+      }, { status: 400 });
+    }
+
+    if (conversationHistory.length > MAX_HISTORY_LENGTH) {
+      return NextResponse.json({
+        error: 'Conversation is too long. Please start a new conversation.',
+        errorCode: 'HISTORY_TOO_LONG'
+      }, { status: 400 });
+    }
+
+    // Validate week number
+    const parsedWeekNumber = typeof weekNumber === 'number' ? weekNumber : parseInt(weekNumber, 10);
+    if (isNaN(parsedWeekNumber) || parsedWeekNumber < 1 || parsedWeekNumber > MAX_WEEK_NUMBER) {
+      return NextResponse.json({
+        error: 'Invalid week number',
+        errorCode: 'INVALID_WEEK'
+      }, { status: 400 });
+    }
 
     // Log request details for debugging
-    console.log(`[${requestId}] Week: ${weekNumber}, History length: ${conversationHistory.length}, Message length: ${message?.length || 0}`);
+    console.log(`[${requestId}] Week: ${parsedWeekNumber}, History length: ${conversationHistory.length}, Message length: ${message.length}`);
 
     // SB 243 Compliance: Check for crisis language BEFORE sending to Claude
     const crisisCheck = detectCrisis(message);
@@ -34,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         response: crisisCheck.type === 'others' ? HARM_RESPONSE : CRISIS_RESPONSE,
         isCrisisIntervention: true,
-        weekNumber,
+        weekNumber: parsedWeekNumber,
         weekTopic
       });
     }
@@ -48,7 +108,7 @@ COURSE CONTEXT
 - 15 weeks, 4 Acts plus Foundations and Finale
 - Central Question: "What has to be true for linguistic communication to be worth the energy?"
 - First Principle: "Don't trust experts—including me"
-- The student is currently in Week ${weekNumber}. Use the week-specific content to guide the conversation.
+- The student is currently in Week ${parsedWeekNumber}. Use the week-specific content to guide the conversation.
 
 STUDENT POPULATION
 These students need scaffolding, not sink-or-swim:
@@ -260,7 +320,7 @@ If a student hasn't engaged with the materials:
 
       return NextResponse.json({
         response: data.content[0].text,
-        weekNumber,
+        weekNumber: parsedWeekNumber,
         weekTopic
       });
     } catch (fetchError) {
