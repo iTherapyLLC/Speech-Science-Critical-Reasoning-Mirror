@@ -30,7 +30,15 @@ import {
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { SubmissionModal } from "@/components/submission-modal"
+import { ConversationGuide } from "@/components/conversation-guide"
 import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
+import {
+  type ConversationFlowState,
+  createInitialFlowState,
+  detectAreas,
+  mergeAreasAddressed,
+  MIN_EXCHANGES,
+} from "@/lib/conversation-flow"
 import { cn } from "@/lib/utils"
 import { getSupabase } from "@/lib/supabase"
 import {
@@ -167,6 +175,7 @@ export default function Home() {
     actIV?: string;
     centralQuestion?: string;
   }>({})
+  const [conversationFlow, setConversationFlow] = useState<ConversationFlowState>(() => createInitialFlowState())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress from studentProgress
@@ -254,6 +263,7 @@ export default function Home() {
     setSessionStartTime(null)
     setBreakReminderShown(false)
     setSidebarOpen(false)
+    setConversationFlow(createInitialFlowState())
   }
 
   const toggleAct = (actNumber: string) => {
@@ -431,6 +441,19 @@ export default function Home() {
             setStudentProgress(updatedProgress)
             saveProgress(updatedProgress)
           }
+
+          // Update conversation flow state for rubric tracking (only for Weeks 2+)
+          if (selectedWeek >= 2) {
+            const allMessages = [...messages, userMessage, assistantMessage]
+            const detectedAreas = detectAreas(allMessages)
+            const newExchangeCount = Math.floor(allMessages.length / 2)
+
+            setConversationFlow(prev => ({
+              ...prev,
+              areasAddressed: mergeAreasAddressed(prev.areasAddressed, detectedAreas),
+              exchangeCount: newExchangeCount,
+            }))
+          }
         }
       } catch (error) {
         console.error("Error sending message:", error)
@@ -448,7 +471,7 @@ export default function Home() {
         setIsLoading(false)
       }
     },
-    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, isFinalMode, finalPhase, finalPaperSections, studentName, studentProgress]
+    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, isFinalMode, finalPhase, finalPaperSections, studentName, studentProgress, conversationFlow]
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1273,13 +1296,13 @@ export default function Home() {
             </div>
 
             {/* Instructor Link */}
-            <div className="p-4 border-t border-amber-200/50">
+            <div className="shrink-0 p-4 border-t border-amber-200/50 bg-white/50">
               <Link
                 href="/instructor-portal-m7k9"
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50 transition-all"
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all shadow-sm"
               >
                 <Shield className="h-4 w-4" />
-                Instructor
+                Instructor Portal
               </Link>
             </div>
 
@@ -1437,6 +1460,18 @@ export default function Home() {
 
         {/* Chat area */}
         <div className="flex-1 flex flex-col min-h-0">
+          {/* Conversation Guide Panel - only for weekly conversations (Week 2+) */}
+          {!isMidtermMode && !isFinalMode && selectedWeek >= 2 && messages.length > 0 && (
+            <ConversationGuide
+              weekNumber={selectedWeek}
+              weekInfo={currentWeek}
+              areasAddressed={conversationFlow.areasAddressed}
+              exchangeCount={conversationFlow.exchangeCount}
+              isExpanded={conversationFlow.guideExpanded}
+              onToggle={() => setConversationFlow(prev => ({ ...prev, guideExpanded: !prev.guideExpanded }))}
+            />
+          )}
+
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 ? (
@@ -1738,6 +1773,8 @@ export default function Home() {
         weekNumber={selectedWeek}
         studentName={studentName}
         sessionStartTime={sessionStartTime}
+        areasAddressed={conversationFlow.areasAddressed}
+        exchangeCount={conversationFlow.exchangeCount}
         onSuccess={() => {
           // Mark the week as complete if it has enough exchanges
           if (studentProgress && selectedWeek >= 2) {

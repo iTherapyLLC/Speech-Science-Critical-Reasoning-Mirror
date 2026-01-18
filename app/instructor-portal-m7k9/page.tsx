@@ -21,9 +21,49 @@ import {
   FileText,
   X,
   Check,
+  FileUp,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { SubmissionDetail, Student } from "@/lib/database.types"
+import { WEEKLY_ARTICLES } from "@/lib/knowledge/syllabus"
+
+// PDF Upload Detection Types
+interface PDFDetectionResult {
+  student: {
+    studentId?: string
+    studentName?: string
+    studentEmail?: string
+    confidence: 'high' | 'medium' | 'low' | 'none'
+    matchType?: string
+  }
+  week: {
+    weekNumber?: number
+    articleTitle?: string
+    confidence: 'high' | 'medium' | 'low' | 'none'
+    matchType?: string
+  }
+  submissionType: {
+    type: 'weekly' | 'midterm' | 'final'
+    confidence: 'high' | 'medium' | 'low'
+  }
+  extractedText: string
+  warnings: string[]
+}
+
+interface UploadItem {
+  id: string
+  file: File
+  status: 'pending' | 'parsing' | 'detected' | 'confirming' | 'confirmed' | 'error'
+  detection?: PDFDetectionResult
+  error?: string
+  // Editable fields
+  selectedStudentId?: string
+  selectedWeek?: number
+}
 
 // Types
 interface Stats {
@@ -123,6 +163,11 @@ export default function InstructorPortal() {
   const [csvPreview, setCsvPreview] = useState<Array<{ name: string; email: string; section: string }> | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // PDF upload state
+  const [uploadItems, setUploadItems] = useState<UploadItem[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
 
   // Check for stored auth
   const storedPassword = typeof window !== "undefined" ? sessionStorage.getItem("instructor_password_v2") : null
@@ -390,6 +435,197 @@ export default function InstructorPortal() {
       alert(`Import failed: ${data.error}`)
     }
     setIsImporting(false)
+  }
+
+  // PDF upload handlers
+  const handlePDFDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const files = Array.from(e.dataTransfer.files).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    )
+
+    if (files.length === 0) {
+      alert('Please drop PDF files only')
+      return
+    }
+
+    const newItems: UploadItem[] = files.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      file,
+      status: 'pending' as const,
+    }))
+
+    setUploadItems(prev => [...prev, ...newItems])
+
+    // Start parsing each file
+    newItems.forEach(item => parsePDFFile(item.id, item.file))
+  }, [])
+
+  const handlePDFSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    )
+
+    if (files.length === 0) return
+
+    const newItems: UploadItem[] = files.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      file,
+      status: 'pending' as const,
+    }))
+
+    setUploadItems(prev => [...prev, ...newItems])
+
+    // Start parsing each file
+    newItems.forEach(item => parsePDFFile(item.id, item.file))
+
+    // Reset input
+    if (pdfInputRef.current) pdfInputRef.current.value = ''
+  }
+
+  const parsePDFFile = async (itemId: string, file: File) => {
+    setUploadItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, status: 'parsing' as const } : item
+      )
+    )
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/instructor/upload', {
+        method: 'POST',
+        headers: { 'x-instructor-password': password },
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      const data = await res.json()
+
+      setUploadItems(prev =>
+        prev.map(item =>
+          item.id === itemId
+            ? {
+                ...item,
+                status: 'detected' as const,
+                detection: data.detection,
+                selectedStudentId: data.detection.student.studentId,
+                selectedWeek: data.detection.week.weekNumber,
+              }
+            : item
+        )
+      )
+    } catch (error) {
+      setUploadItems(prev =>
+        prev.map(item =>
+          item.id === itemId
+            ? {
+                ...item,
+                status: 'error' as const,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              }
+            : item
+        )
+      )
+    }
+  }
+
+  const confirmUpload = async (itemId: string) => {
+    const item = uploadItems.find(i => i.id === itemId)
+    if (!item) return
+
+    const student = students.find(s => s.id === item.selectedStudentId)
+    if (!student || !item.selectedWeek) {
+      alert('Please select a student and week')
+      return
+    }
+
+    setUploadItems(prev =>
+      prev.map(i => (i.id === itemId ? { ...i, status: 'confirming' as const } : i))
+    )
+
+    try {
+      // Read file as base64 for storage
+      const arrayBuffer = await item.file.arrayBuffer()
+      const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+      const res = await fetch('/api/instructor/upload', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-instructor-password': password,
+        },
+        body: JSON.stringify({
+          studentId: student.id,
+          studentEmail: student.email,
+          studentName: student.name,
+          weekNumber: item.selectedWeek,
+          submissionType: item.detection?.submissionType.type || 'weekly',
+          pdfData: base64,
+          filename: item.file.name,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      setUploadItems(prev =>
+        prev.map(i => (i.id === itemId ? { ...i, status: 'confirmed' as const } : i))
+      )
+
+      // Refresh submissions list
+      fetchSubmissions()
+      fetchStats()
+      fetchProgress()
+    } catch (error) {
+      setUploadItems(prev =>
+        prev.map(i =>
+          i.id === itemId
+            ? { ...i, status: 'error' as const, error: error instanceof Error ? error.message : 'Unknown error' }
+            : i
+        )
+      )
+    }
+  }
+
+  const removeUploadItem = (itemId: string) => {
+    setUploadItems(prev => prev.filter(i => i.id !== itemId))
+  }
+
+  const confirmAllUploads = async () => {
+    const readyItems = uploadItems.filter(
+      i => i.status === 'detected' && i.selectedStudentId && i.selectedWeek
+    )
+
+    for (const item of readyItems) {
+      await confirmUpload(item.id)
+    }
+  }
+
+  const clearCompletedUploads = () => {
+    setUploadItems(prev => prev.filter(i => i.status !== 'confirmed'))
+  }
+
+  const getConfidenceIcon = (confidence: string) => {
+    switch (confidence) {
+      case 'high':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />
+      case 'medium':
+        return <HelpCircle className="h-4 w-4 text-amber-500" />
+      case 'low':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />
+      default:
+        return <XCircle className="h-4 w-4 text-red-500" />
+    }
   }
 
   // Export handler
@@ -916,6 +1152,285 @@ export default function InstructorPortal() {
         {/* Submissions Tab */}
         {activeTab === 'submissions' && (
           <div className="space-y-4">
+            {/* Smart Upload Zone */}
+            <div className="bg-white rounded-xl border border-amber-200/50 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-amber-100">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <FileUp className="h-5 w-5 text-teal-600" />
+                  Smart Upload
+                </h2>
+              </div>
+
+              {/* Drop Zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handlePDFDrop}
+                className={`m-4 border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  isDragging
+                    ? 'border-teal-500 bg-teal-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <Upload className={`h-10 w-10 mx-auto mb-3 ${isDragging ? 'text-teal-500' : 'text-gray-400'}`} />
+                <p className="text-gray-600 mb-2">
+                  Drop PDF(s) here or{' '}
+                  <button
+                    onClick={() => pdfInputRef.current?.click()}
+                    className="text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    click to upload
+                  </button>
+                </p>
+                <p className="text-xs text-gray-500">
+                  PDFs are auto-analyzed to detect student and week
+                </p>
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  onChange={handlePDFSelect}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Upload Items */}
+              {uploadItems.length > 0 && (
+                <div className="px-4 pb-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      {uploadItems.length} file(s) queued
+                    </span>
+                    <div className="flex gap-2">
+                      {uploadItems.some(i => i.status === 'confirmed') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearCompletedUploads}
+                          className="text-gray-500"
+                        >
+                          Clear completed
+                        </Button>
+                      )}
+                      {uploadItems.filter(i => i.status === 'detected' && i.selectedStudentId && i.selectedWeek).length > 1 && (
+                        <Button
+                          size="sm"
+                          onClick={confirmAllUploads}
+                          className="bg-teal-600 hover:bg-teal-700 text-white"
+                        >
+                          Confirm All
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {uploadItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`p-4 rounded-xl border ${
+                          item.status === 'confirmed'
+                            ? 'bg-green-50 border-green-200'
+                            : item.status === 'error'
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* File info */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {item.file.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({(item.file.size / 1024).toFixed(0)} KB)
+                              </span>
+                            </div>
+
+                            {/* Status display */}
+                            {item.status === 'pending' || item.status === 'parsing' ? (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Loader2 className="h-4 w-4 animate-spin text-teal-500" />
+                                Analyzing PDF...
+                              </div>
+                            ) : item.status === 'error' ? (
+                              <div className="flex items-center gap-2 text-sm text-red-600">
+                                <XCircle className="h-4 w-4" />
+                                {item.error}
+                              </div>
+                            ) : item.status === 'confirmed' ? (
+                              <div className="flex items-center gap-2 text-sm text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Filed successfully
+                              </div>
+                            ) : item.status === 'confirming' ? (
+                              <div className="flex items-center gap-2 text-sm text-teal-600">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </div>
+                            ) : item.detection ? (
+                              <div className="space-y-2">
+                                {/* Detection results */}
+                                <div className="flex flex-wrap gap-4">
+                                  {/* Student */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Student:</span>
+                                    {item.detection.student.confidence !== 'none' ? (
+                                      <div className="flex items-center gap-1">
+                                        {getConfidenceIcon(item.detection.student.confidence)}
+                                        <select
+                                          value={item.selectedStudentId || ''}
+                                          onChange={(e) =>
+                                            setUploadItems(prev =>
+                                              prev.map(i =>
+                                                i.id === item.id
+                                                  ? { ...i, selectedStudentId: e.target.value }
+                                                  : i
+                                              )
+                                            )
+                                          }
+                                          className="text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        >
+                                          <option value="">Select student...</option>
+                                          {students.map(s => (
+                                            <option key={s.id} value={s.id}>
+                                              {s.name} ({s.email})
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={item.selectedStudentId || ''}
+                                        onChange={(e) =>
+                                          setUploadItems(prev =>
+                                            prev.map(i =>
+                                              i.id === item.id
+                                                ? { ...i, selectedStudentId: e.target.value }
+                                                : i
+                                            )
+                                          )
+                                        }
+                                        className="text-sm border border-red-200 rounded px-2 py-1 bg-red-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                      >
+                                        <option value="">Select student...</option>
+                                        {students.map(s => (
+                                          <option key={s.id} value={s.id}>
+                                            {s.name} ({s.email})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+
+                                  {/* Week */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Week:</span>
+                                    {item.detection.week.confidence !== 'none' ? (
+                                      <div className="flex items-center gap-1">
+                                        {getConfidenceIcon(item.detection.week.confidence)}
+                                        <select
+                                          value={item.selectedWeek || ''}
+                                          onChange={(e) =>
+                                            setUploadItems(prev =>
+                                              prev.map(i =>
+                                                i.id === item.id
+                                                  ? { ...i, selectedWeek: parseInt(e.target.value) || undefined }
+                                                  : i
+                                              )
+                                            )
+                                          }
+                                          className="text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        >
+                                          <option value="">Select week...</option>
+                                          {Array.from({ length: 14 }, (_, i) => i + 2).map(w => (
+                                            <option key={w} value={w}>
+                                              Week {w}: {WEEKLY_ARTICLES[w as keyof typeof WEEKLY_ARTICLES]?.author || ''}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={item.selectedWeek || ''}
+                                        onChange={(e) =>
+                                          setUploadItems(prev =>
+                                            prev.map(i =>
+                                              i.id === item.id
+                                                ? { ...i, selectedWeek: parseInt(e.target.value) || undefined }
+                                                : i
+                                            )
+                                          )
+                                        }
+                                        className="text-sm border border-red-200 rounded px-2 py-1 bg-red-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                      >
+                                        <option value="">Select week...</option>
+                                        {Array.from({ length: 14 }, (_, i) => i + 2).map(w => (
+                                          <option key={w} value={w}>
+                                            Week {w}: {WEEKLY_ARTICLES[w as keyof typeof WEEKLY_ARTICLES]?.author || ''}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Warnings */}
+                                {item.detection.warnings.length > 0 && (
+                                  <div className="text-xs text-amber-600 flex items-start gap-1">
+                                    <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                                    <span>{item.detection.warnings.join(' ')}</span>
+                                  </div>
+                                )}
+
+                                {/* Auto-confirm message for high confidence */}
+                                {item.detection.student.confidence === 'high' &&
+                                  item.detection.week.confidence === 'high' &&
+                                  item.detection.warnings.length === 0 && (
+                                    <div className="text-xs text-green-600 flex items-center gap-1">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Auto-detected: {item.detection.student.studentName}, Week {item.detection.week.weekNumber}
+                                    </div>
+                                  )}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {item.status === 'detected' && (
+                              <Button
+                                size="sm"
+                                onClick={() => confirmUpload(item.id)}
+                                disabled={!item.selectedStudentId || !item.selectedWeek}
+                                className="bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50"
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Confirm
+                              </Button>
+                            )}
+                            {item.status !== 'confirming' && item.status !== 'confirmed' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeUploadItem(item.id)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Filters */}
             <div className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
               <div className="flex flex-wrap items-center gap-4">

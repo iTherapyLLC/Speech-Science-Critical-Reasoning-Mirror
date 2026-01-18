@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
-import { RESEARCH_METHODS_PRIMER } from '@/lib/knowledge';
+import { RESEARCH_METHODS_PRIMER, COURSE_SYLLABUS } from '@/lib/knowledge';
 
 // Timeout for API requests (120 seconds - final exam conversations can be longer)
 const API_TIMEOUT_MS = 120000;
@@ -378,8 +378,8 @@ ${paperSections.centralQuestion ? `Central Question: "${paperSections.centralQue
 
 Guide the conversation according to the current phase. When a section is complete, acknowledge it and move to the next phase.`;
 
-    // Include Research Methods Primer for statistical concept explanations
-    const fullSystemPrompt = FINAL_SYSTEM_PROMPT + RESEARCH_METHODS_PRIMER + '\n\n' + phaseContext;
+    // Include Research Methods Primer and Course Syllabus for comprehensive context
+    const fullSystemPrompt = FINAL_SYSTEM_PROMPT + '\n\n' + COURSE_SYLLABUS + '\n\n' + RESEARCH_METHODS_PRIMER + '\n\n' + phaseContext;
 
     const messages = [
       ...conversationHistory.map((msg: { role: string; content: string }) => ({

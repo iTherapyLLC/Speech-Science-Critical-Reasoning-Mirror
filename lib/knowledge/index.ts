@@ -6,3 +6,11 @@ export {
   STATISTICAL_QUESTION_PATTERNS,
   containsStatisticalQuestion,
 } from './research-methods-primer';
+
+export {
+  COURSE_SYLLABUS,
+  CENTRAL_QUESTION,
+  ACTS,
+  WEEKLY_ARTICLES,
+  THEMATIC_THREADS,
+} from './syllabus';

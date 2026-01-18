@@ -3,8 +3,15 @@
 import type React from "react"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, X, Loader2, CheckCircle } from "lucide-react"
+import { Send, X, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  type AreasAddressed,
+  MIN_EXCHANGES,
+  countAddressedAreas,
+  getMissingAreas,
+  RUBRIC_AREAS,
+} from "@/lib/conversation-flow"
 
 interface Message {
   role: "user" | "assistant"
@@ -19,6 +26,8 @@ interface SubmissionModalProps {
   studentName: string
   sessionStartTime: Date | null
   onSuccess?: () => void
+  areasAddressed?: AreasAddressed
+  exchangeCount?: number
 }
 
 export function SubmissionModal({
@@ -28,9 +37,18 @@ export function SubmissionModal({
   messages,
   studentName,
   sessionStartTime,
-  onSuccess
+  onSuccess,
+  areasAddressed,
+  exchangeCount,
 }: SubmissionModalProps) {
   const messageCount = messages.filter(m => m.role === "user").length
+
+  // Calculate validation warnings
+  const actualExchangeCount = exchangeCount ?? Math.floor(messages.length / 2)
+  const meetsMinExchanges = actualExchangeCount >= MIN_EXCHANGES
+  const addressedCount = areasAddressed ? countAddressedAreas(areasAddressed) : 0
+  const missingAreas = areasAddressed ? getMissingAreas(areasAddressed) : []
+  const hasEnoughAreas = addressedCount >= 3
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -148,14 +166,76 @@ export function SubmissionModal({
                 </div>
 
                 <div className="mb-4 p-3 bg-teal-50 rounded-xl border border-teal-100">
-                  <div className="flex items-center gap-2 text-sm text-teal-800">
-                    <span className="font-medium">Week {weekNumber}</span>
-                    <span className="text-teal-400">|</span>
-                    <span>{messageCount} message{messageCount !== 1 ? 's' : ''} in conversation</span>
+                  <div className="flex items-center justify-between text-sm text-teal-800">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Week {weekNumber}</span>
+                      <span className="text-teal-400">|</span>
+                      <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={meetsMinExchanges ? "text-teal-600" : "text-amber-600"}>
+                        {actualExchangeCount}/{MIN_EXCHANGES} exchanges
+                      </span>
+                      {areasAddressed && (
+                        <>
+                          <span className="text-teal-400">|</span>
+                          <span className={hasEnoughAreas ? "text-teal-600" : "text-amber-600"}>
+                            {addressedCount}/5 areas
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {messageCount < 8 && (
+                {/* Exchange count warning */}
+                {!meetsMinExchanges && (
+                  <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">
+                          Minimum exchanges not met
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Your conversation has {actualExchangeCount} of {MIN_EXCHANGES} required exchanges.
+                          Submitting now may result in a lower score or require revision.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Missing rubric areas warning */}
+                {areasAddressed && !hasEnoughAreas && (
+                  <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">
+                          Some rubric areas may not be addressed
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          The following areas haven't been detected in your conversation:
+                        </p>
+                        <ul className="text-xs text-amber-700 mt-1 list-disc list-inside">
+                          {missingAreas.slice(0, 3).map(area => (
+                            <li key={area}>{area}</li>
+                          ))}
+                          {missingAreas.length > 3 && (
+                            <li>...and {missingAreas.length - 3} more</li>
+                          )}
+                        </ul>
+                        <p className="text-xs text-amber-600 mt-2 italic">
+                          Consider continuing your conversation to address these areas for full points.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy warning for very short conversations */}
+                {messageCount < 8 && meetsMinExchanges && (
                   <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
                     <p className="text-sm text-amber-800">
                       <span className="font-medium">Note:</span> Conversations with fewer than 8 student turns may be flagged for review.
