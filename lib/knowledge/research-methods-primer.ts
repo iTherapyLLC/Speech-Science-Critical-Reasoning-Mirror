@@ -6,10 +6,12 @@ export const RESEARCH_METHODS_PRIMER = `
 
 RESEARCH METHODS PRIMER: THE LANGUAGE OF EVIDENCE
 
-You have access to scaffolded explanations of statistical concepts for students with no prior statistics background. When students ask about p-values, statistical power, sample size, variance explained, correlation vs. causation, confidence intervals, regression, or standard deviation, use these EXACT analogies for consistency with lecture materials.
+You have access to scaffolded explanations of statistical concepts for students with no prior statistics background. When students ask about independent/dependent variables, p-values, statistical power, sample size, variance explained, correlation vs. causation, confidence intervals, regression, or standard deviation, use these EXACT explanations and analogies for consistency with lecture materials.
 
 DETECTING STATISTICAL QUESTIONS
 Recognize when students are asking about statistical concepts. Common triggers include:
+- "What is an independent variable?" / "What is a dependent variable?"
+- "What's the IV?" / "What's the DV?"
 - "What is a p-value?" / "What does p < .05 mean?"
 - "What is statistical significance?"
 - "Why does sample size matter?"
@@ -23,6 +25,50 @@ Recognize when students are asking about statistical concepts. Common triggers i
 - "What does 'predicts' mean in the study?"
 
 When these questions arise, use the specific explanations and analogies below, building step-by-step without assuming prior knowledge.
+
+---
+
+FOUNDATIONAL CONCEPT: INDEPENDENT AND DEPENDENT VARIABLES
+
+Before understanding statistical tests, students need to understand what researchers are measuring and manipulating.
+
+INDEPENDENT VARIABLE (IV)
+Definition: The factor researchers examine as a potential predictor or cause.
+
+The independent variable is what the researcher thinks might influence the outcome. It's "independent" because it's not affected by other variables in the study—it's the starting point of the research question.
+
+IN GREENWELL & WALSH:
+The independent variables are:
+- Graduate training in EBP
+- Career training in EBP
+- Perceived barriers to EBP
+
+These are the factors the researchers examined to see if they predict EBP use.
+
+DEPENDENT VARIABLE (DV)
+Definition: The outcome being measured.
+
+The dependent variable is what the researcher measures to see if it changes. It's "dependent" because its value depends on the independent variable(s).
+
+IN GREENWELL & WALSH:
+The dependent variable is EBP use (how often clinicians use evidence-based practice).
+
+The researchers asked: "Does training affect EBP use?" Training is the IV; EBP use is the DV.
+
+MEMORY TRICK:
+The dependent variable DEPENDS on the independent variable.
+
+Frame research questions as: "Does [IV] affect [DV]?"
+- "Does training affect EBP use?"
+- "Does sample size affect statistical power?"
+- "Does sleep affect exam performance?"
+
+The thing before "affect" is the IV. The thing after is the DV.
+
+COMMON CONFUSION:
+Students sometimes mix these up. A helpful check: Ask "Which one are the researchers measuring as an outcome?" That's the DV. "Which one might explain differences in that outcome?" That's the IV.
+
+In an experiment, the IV is what you manipulate. In survey research like Greenwell & Walsh, the IV is what you measure as a potential predictor.
 
 ---
 
@@ -365,6 +411,11 @@ HOW TO USE THIS PRIMER IN CONVERSATIONS:
 
 // Export statistical question detection patterns
 export const STATISTICAL_QUESTION_PATTERNS = [
+  /independent\s+variable/i,
+  /dependent\s+variable/i,
+  /\biv\b/i,
+  /\bdv\b/i,
+  /what('s|\s+is)\s+(the\s+)?(iv|dv)/i,
   /p[\s-]?value/i,
   /p\s*[<>=]\s*\.?\d/i,
   /statistical(ly)?\s+significan/i,
