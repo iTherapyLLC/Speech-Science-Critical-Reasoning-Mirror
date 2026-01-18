@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Shield } from "lucide-react"
 import { weeksData, acts } from "@/lib/weeks-data"
 import { cn } from "@/lib/utils"
 
@@ -49,8 +50,9 @@ export function WeekSidebar({ selectedWeek, onWeekSelect }: WeekSidebarProps) {
       <div className="p-4 border-t border-gray-200 mt-auto">
         <Link
           href="/instructor-portal-m7k9"
-          className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50 transition-all"
         >
+          <Shield className="h-4 w-4" />
           Instructor
         </Link>
       </div>
