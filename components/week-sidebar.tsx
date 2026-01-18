@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { weeksData, acts } from "@/lib/weeks-data"
 import { cn } from "@/lib/utils"
 
@@ -43,6 +44,16 @@ export function WeekSidebar({ selectedWeek, onWeekSelect }: WeekSidebarProps) {
           )
         })}
       </nav>
+
+      {/* Instructor link */}
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        <Link
+          href="/instructor-portal-m7k9"
+          className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+        >
+          Instructor
+        </Link>
+      </div>
     </div>
   )
 }
