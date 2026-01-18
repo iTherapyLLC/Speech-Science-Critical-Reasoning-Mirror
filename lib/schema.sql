@@ -197,3 +197,47 @@ BEGIN
   ORDER BY st.name;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- STORAGE BUCKET FOR PDF SUBMISSIONS
+-- ============================================
+
+-- Create the bucket for PDF submissions
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'pdf-submissions',
+  'pdf-submissions',
+  false,  -- Private bucket (not publicly accessible)
+  10485760,  -- 10MB max file size
+  ARRAY['application/pdf']  -- Only allow PDF files
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- STORAGE POLICIES FOR PDF BUCKET
+-- ============================================
+
+-- Allow service role to do everything (for instructor access)
+CREATE POLICY "Service role full access to pdf-submissions"
+ON storage.objects
+FOR ALL
+USING (bucket_id = 'pdf-submissions' AND auth.role() = 'service_role')
+WITH CHECK (bucket_id = 'pdf-submissions' AND auth.role() = 'service_role');
+
+-- Allow authenticated users to upload PDFs (path: email/week/filename.pdf)
+CREATE POLICY "Users can upload their own PDFs"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'pdf-submissions'
+  AND auth.role() = 'authenticated'
+);
+
+-- Allow authenticated users to read their own PDFs
+CREATE POLICY "Users can read their own PDFs"
+ON storage.objects
+FOR SELECT
+USING (
+  bucket_id = 'pdf-submissions'
+  AND auth.role() = 'authenticated'
+);

@@ -25,7 +25,9 @@ import {
   Unlock,
   ClipboardCheck,
   Award,
+  Shield,
 } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { SubmissionModal } from "@/components/submission-modal"
 import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
@@ -1268,6 +1270,17 @@ export default function Home() {
                   })}
                 </div>
               </motion.div>
+            </div>
+
+            {/* Instructor Link */}
+            <div className="p-4 border-t border-amber-200/50">
+              <Link
+                href="/instructor-portal-m7k9"
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50 transition-all"
+              >
+                <Shield className="h-4 w-4" />
+                Instructor
+              </Link>
             </div>
 
             {/* Student Name Footer */}
