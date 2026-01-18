@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
+import { RESEARCH_METHODS_PRIMER } from '@/lib/knowledge';
 
 // Timeout for API requests (90 seconds - Claude can take a while for long conversations)
 const API_TIMEOUT_MS = 90000;
@@ -282,10 +283,15 @@ FOR WEEK 1 CONVERSATIONS:
 WEEK 1 PARTIAL ANSWER TO THE CENTRAL QUESTION:
 We must understand what sound IS and how it becomes speech. The vocal folds create a source, the vocal tract creates a filter, and together they produce the acoustic signal that carries meaning. Before we can study what goes wrong, we must understand what goes right.`;
 
-    // Add Week 1 content if it's the foundations week
-    const fullSystemPrompt = parsedWeekNumber === 1
-      ? systemPrompt + week1Content
-      : systemPrompt;
+    // Build full system prompt with appropriate content
+    // Research Methods Primer is included for all weeks since statistical questions
+    // can arise when discussing the Greenwell & Walsh study or any research article
+    let fullSystemPrompt = systemPrompt + RESEARCH_METHODS_PRIMER;
+
+    // Add Week 1 Foundations content if applicable
+    if (parsedWeekNumber === 1) {
+      fullSystemPrompt += week1Content;
+    }
 
     const messages = [
       ...conversationHistory.map((msg: { role: string; content: string }) => ({
