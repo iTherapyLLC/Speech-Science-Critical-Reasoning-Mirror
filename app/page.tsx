@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
   Award,
   Shield,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -152,6 +153,8 @@ export default function Home() {
   const [hasTriggeredFirstMessageConfetti, setHasTriggeredFirstMessageConfetti] = useState(false)
   const [nameInput, setNameInput] = useState("")
   const [input, setInput] = useState("")
+  const [showPasteModal, setShowPasteModal] = useState(false)
+  const [pasteAttempts, setPasteAttempts] = useState(0)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [breakReminderShown, setBreakReminderShown] = useState(false)
@@ -478,6 +481,16 @@ export default function Home() {
     e.preventDefault()
     if (input.trim() && !isLoading) {
       sendMessage(input.trim())
+      setInput("")
+    }
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    if (pastedText.length > 50) {
+      e.preventDefault()
+      setPasteAttempts(prev => prev + 1)
+      setShowPasteModal(true)
       setInput("")
     }
   }
@@ -1678,7 +1691,8 @@ export default function Home() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Share your thinking..."
+                onPaste={handlePaste}
+                placeholder="Type your thinking here..."
                 className="flex-1 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-400"
                 disabled={isLoading}
               />
@@ -1693,6 +1707,7 @@ export default function Home() {
                 </Button>
               </motion.div>
             </form>
+            <p className="text-xs text-gray-400 text-center mt-2 max-w-4xl mx-auto">Responses must be typed directly.</p>
           </motion.div>
         </div>
       </div>
@@ -1760,6 +1775,47 @@ export default function Home() {
                   </motion.div>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Paste Detection Modal */}
+      <AnimatePresence>
+        {showPasteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8"
+            >
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                <AlertTriangle className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                Typing Required
+              </h2>
+              <p className="text-gray-600 text-center mb-8">
+                The Critical Reasoning Mirror requires you to type your responses directly. Pasting text from other sources is not permitted for graded conversations.
+              </p>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={() => {
+                    setShowPasteModal(false)
+                    setInput("")
+                  }}
+                  className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/25"
+                >
+                  I Understand
+                </Button>
+              </motion.div>
             </motion.div>
           </motion.div>
         )}
