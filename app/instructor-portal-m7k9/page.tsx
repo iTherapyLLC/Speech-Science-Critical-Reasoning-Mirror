@@ -26,6 +26,7 @@ import {
   XCircle,
   HelpCircle,
   ArrowRight,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { SubmissionDetail, Student } from "@/lib/database.types"
@@ -162,6 +163,7 @@ export default function InstructorPortal() {
   // CSV upload state
   const [csvPreview, setCsvPreview] = useState<Array<{ name: string; email: string; section: string }> | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // PDF upload state
@@ -435,6 +437,42 @@ export default function InstructorPortal() {
       alert(`Import failed: ${data.error}`)
     }
     setIsImporting(false)
+  }
+
+  // Preview management helpers
+  const removeFromPreview = (index: number) => {
+    setCsvPreview(prev => prev?.filter((_, i) => i !== index) ?? null)
+    setSelectedStudents(prev => {
+      const newSet = new Set<number>()
+      prev.forEach(i => {
+        if (i < index) newSet.add(i)
+        else if (i > index) newSet.add(i - 1)
+      })
+      return newSet
+    })
+  }
+
+  const removeSelected = () => {
+    setCsvPreview(prev => prev?.filter((_, i) => !selectedStudents.has(i)) ?? null)
+    setSelectedStudents(new Set())
+  }
+
+  const toggleStudent = (index: number) => {
+    setSelectedStudents(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) newSet.delete(index)
+      else newSet.add(index)
+      return newSet
+    })
+  }
+
+  const toggleAll = () => {
+    if (!csvPreview) return
+    if (selectedStudents.size === csvPreview.length) {
+      setSelectedStudents(new Set())
+    } else {
+      setSelectedStudents(new Set(csvPreview.map((_, i) => i)))
+    }
   }
 
   // PDF upload handlers
@@ -1067,32 +1105,71 @@ export default function InstructorPortal() {
                       size="sm"
                       onClick={() => {
                         setCsvPreview(null)
+                        setSelectedStudents(new Set())
                         if (fileInputRef.current) fileInputRef.current.value = ''
                       }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                  {selectedStudents.size > 0 && (
+                    <div className="mb-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={removeSelected}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove Selected ({selectedStudents.size})
+                      </Button>
+                    </div>
+                  )}
                   <div className="max-h-64 overflow-y-auto border rounded-lg">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
+                          <th className="px-3 py-2 w-8">
+                            <input
+                              type="checkbox"
+                              checked={csvPreview.length > 0 && selectedStudents.size === csvPreview.length}
+                              onChange={toggleAll}
+                              className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                            />
+                          </th>
                           <th className="px-3 py-2 text-left">Name</th>
                           <th className="px-3 py-2 text-left">Email</th>
                           <th className="px-3 py-2 text-left">Section</th>
+                          <th className="px-3 py-2 w-10"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {csvPreview.slice(0, 20).map((row, idx) => (
-                          <tr key={idx} className="border-t">
+                          <tr key={idx} className="border-t hover:bg-amber-50/50 transition-colors">
+                            <td className="px-3 py-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedStudents.has(idx)}
+                                onChange={() => toggleStudent(idx)}
+                                className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                              />
+                            </td>
                             <td className="px-3 py-2">{row.name}</td>
                             <td className="px-3 py-2">{row.email}</td>
                             <td className="px-3 py-2">{row.section}</td>
+                            <td className="px-3 py-2">
+                              <button
+                                onClick={() => removeFromPreview(idx)}
+                                className="text-gray-400 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                         {csvPreview.length > 20 && (
                           <tr className="border-t">
-                            <td colSpan={3} className="px-3 py-2 text-gray-500 text-center">
+                            <td colSpan={5} className="px-3 py-2 text-gray-500 text-center">
                               ...and {csvPreview.length - 20} more
                             </td>
                           </tr>
@@ -1100,14 +1177,18 @@ export default function InstructorPortal() {
                       </tbody>
                     </table>
                   </div>
-                  <Button
-                    onClick={importStudents}
-                    disabled={isImporting}
-                    className="mt-4 bg-teal-600 hover:bg-teal-700 text-white"
-                  >
-                    {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Import {csvPreview.length} Students
-                  </Button>
+                  {csvPreview.length === 0 ? (
+                    <p className="text-amber-600 text-sm mt-4">No students to import</p>
+                  ) : (
+                    <Button
+                      onClick={importStudents}
+                      disabled={isImporting}
+                      className="mt-4 bg-teal-600 hover:bg-teal-700 text-white"
+                    >
+                      {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Import {csvPreview.length} Students
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
