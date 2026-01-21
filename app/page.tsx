@@ -38,6 +38,7 @@ import {
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { SubmissionModal } from "@/components/submission-modal"
+import { GradingInfoModal, GradingInfoContent } from "@/components/grading-info"
 import { ConversationGuide } from "@/components/conversation-guide"
 import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
 import {
@@ -157,6 +158,7 @@ export default function Home() {
   const [flagReasons, setFlagReasons] = useState<string[]>([])
   const [showDictationHelp, setShowDictationHelp] = useState(false)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
+  const [showGradingInfo, setShowGradingInfo] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [breakReminderShown, setBreakReminderShown] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -1513,6 +1515,19 @@ export default function Home() {
               </>
             ) : (
               <>
+                {/* Grading Info button - always visible */}
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowGradingInfo(true)}
+                    className="flex items-center gap-2 bg-white hover:bg-purple-50 border-purple-200 text-purple-700 hover:text-purple-800 hover:border-purple-300 transition-all"
+                  >
+                    <GraduationCap className="h-4 w-4" />
+                    <span className="hidden sm:inline">Grading</span>
+                  </Button>
+                </motion.div>
+
                 {/* Weekly mode buttons */}
                 {selectedWeek >= 2 && (
                   <>
@@ -1876,6 +1891,16 @@ export default function Home() {
                         })}
                       </div>
                     </motion.div>
+
+                    {/* Assessment & Grading Section */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1.5 }}
+                      className="mt-8"
+                    >
+                      <GradingInfoContent />
+                    </motion.div>
                   </div>
                 ) : (
                   /* Weekly Conversation Welcome Screen - Weeks 2-14 */
@@ -2225,6 +2250,12 @@ export default function Home() {
             saveProgress(updatedProgress)
           }
         }}
+      />
+
+      {/* Grading Info Modal */}
+      <GradingInfoModal
+        isOpen={showGradingInfo}
+        onClose={() => setShowGradingInfo(false)}
       />
     </div>
   )
