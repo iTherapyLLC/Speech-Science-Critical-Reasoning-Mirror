@@ -30,6 +30,10 @@ import {
   Mic,
   HelpCircle,
   Flag,
+  Activity,
+  Target,
+  BarChart3,
+  MessageCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -60,6 +64,7 @@ import {
   getCompletionStats,
 } from "@/lib/progress-tracking"
 import type { Message as DBMessage, Json } from "@/lib/database.types"
+import { WEEK_1_TOPICS, CONVERSATION_STARTERS } from "@/lib/knowledge/syllabus"
 
 export interface Message {
   role: "user" | "assistant"
@@ -95,23 +100,15 @@ const triggerConfetti = () => {
   }, 250)
 }
 
-// Week-specific conversation starters - matched to SLHS 303 syllabus
-const weekConversationStarters: Record<number, string> = {
-  // Week 1: No graded conversation - handled separately in UI
-  2: "What surprised you most about how SLPs actually use research in their daily practice?",
-  3: "How does vocal intensity confound jitter and shimmer measurements?",
-  4: "Which acoustic measures survive environmental noise, and which don't?",
-  5: "Why do different software tools give different numbers for the same voice sample?",
-  6: "Why do different maskers create different challenges for listeners?",
-  7: "How do expectations help and hurt speech perception in noise?",
-  8: "Are phoneme boundaries walls or gradients? What does the evidence say?",
-  9: "Which acoustic measures actually predict perceived voice quality?",
-  10: "Can a composite index like AVQI truly capture voice quality?",
-  11: "Why do vowels matter more than we thought in development and disorders?",
-  12: "Can passive childhood exposure shape adult pronunciation?",
-  13: "What predicts success in understanding speech in noise?",
-  14: "Is CPP a pure measure of laryngeal function, or is it confounded?",
-  15: "How do you conduct high-quality acoustic analysis in clinical practice?",
+// Helper function to get icon component for Week 1 topics
+const getTopicIcon = (iconName: string) => {
+  switch (iconName) {
+    case "waveform": return Activity
+    case "target": return Target
+    case "chart": return BarChart3
+    case "message": return MessageCircle
+    default: return Sparkles
+  }
 }
 
 // Animation variants
@@ -1592,7 +1589,7 @@ export default function Home() {
                     </motion.button>
                   </div>
                 ) : selectedWeek === 1 ? (
-                  /* Week 1 Foundations - Onboarding with paste policy */
+                  /* Week 1 Foundations - Onboarding with paste policy and guided exploration */
                   <div className="max-w-2xl space-y-6 text-left">
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
@@ -1618,7 +1615,7 @@ export default function Home() {
                       className="bg-amber-50 border border-amber-200 rounded-xl p-4"
                     >
                       <p className="text-amber-800 text-sm">
-                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts: source-filter theory, acoustic properties, and the Shannon-Weaver model.
+                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts below. These practice conversations will help you get familiar with the Mirror.
                       </p>
                     </motion.div>
 
@@ -1671,6 +1668,60 @@ export default function Home() {
                         </p>
                       </div>
                     </motion.div>
+
+                    {/* Get Familiar with the Mirror - Topic Cards */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.9 }}
+                      className="space-y-4"
+                    >
+                      <div className="text-center">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">Get Familiar with the Mirror</h3>
+                        <p className="text-gray-600 text-sm">
+                          Before Week 2, explore these foundational concepts. Click any topic to start a guided conversation:
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.values(WEEK_1_TOPICS).map((topic, index) => {
+                          const IconComponent = getTopicIcon(topic.icon)
+                          const gradients = [
+                            "from-blue-500 to-indigo-600",
+                            "from-amber-500 to-orange-600",
+                            "from-emerald-500 to-teal-600",
+                            "from-purple-500 to-pink-600",
+                          ]
+                          return (
+                            <motion.button
+                              key={topic.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 1.0 + index * 0.1 }}
+                              whileHover={{ scale: 1.02, y: -2 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => {
+                                const openingMessage: Message = {
+                                  role: "assistant",
+                                  content: topic.starterMessage,
+                                }
+                                setMessages([openingMessage])
+                              }}
+                              className="flex items-start gap-3 p-4 rounded-xl text-left transition-all bg-white border-2 border-gray-100 shadow-sm hover:shadow-md hover:border-teal-200 group"
+                            >
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${gradients[index]} shadow-lg transition-transform group-hover:scale-110`}>
+                                <IconComponent className="w-6 h-6 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 text-sm mb-0.5">{topic.title}</p>
+                                <p className="text-xs text-gray-500 leading-relaxed">{topic.subtitle}</p>
+                              </div>
+                              <ChevronRight className="w-5 h-5 text-gray-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </motion.button>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
                   </div>
                 ) : (
                   /* Weekly Conversation Welcome Screen - Weeks 2-14 */
@@ -1693,7 +1744,7 @@ export default function Home() {
                       </p>
                     </motion.div>
 
-                    {weekConversationStarters[selectedWeek] && (
+                    {CONVERSATION_STARTERS[selectedWeek] && (
                       <motion.button
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1701,10 +1752,10 @@ export default function Home() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
-                          const starterQuestion = weekConversationStarters[selectedWeek]
+                          const starterMessage = CONVERSATION_STARTERS[selectedWeek]
                           const openingMessage: Message = {
                             role: "assistant",
-                            content: starterQuestion,
+                            content: starterMessage,
                           }
                           setMessages([openingMessage])
                         }}
@@ -1715,7 +1766,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900 mb-1">Start This Week's Conversation</p>
-                          <p className="text-sm text-gray-600 leading-relaxed">{weekConversationStarters[selectedWeek]}</p>
+                          <p className="text-sm text-gray-600 leading-relaxed">The Mirror will guide you through this week's article with questions to develop your critical thinking.</p>
                         </div>
                         <ChevronRight className="w-6 h-6 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                       </motion.button>
@@ -1766,8 +1817,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Input area - hidden for Week 1 (no graded conversation) */}
-          {(selectedWeek >= 2 || isMidtermMode || isFinalMode) && (
+          {/* Input area - show for Week 1 only when conversation is active */}
+          {(selectedWeek >= 2 || isMidtermMode || isFinalMode || (selectedWeek === 1 && messages.length > 0)) && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

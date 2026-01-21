@@ -438,3 +438,137 @@ export const KEY_DATES = {
   springBreak: "March 30 - April 3, 2026",
   finalExam: "May 14, 2026",
 };
+
+// Week 1 Guided Topics - Clickable cards for foundational exploration
+export const WEEK_1_TOPICS = {
+  sourceFilter: {
+    id: "source-filter",
+    title: "Source-Filter Theory",
+    subtitle: "How does the voice create and shape sound?",
+    icon: "waveform",
+    starterMessage: `Let's explore how your voice works. When you speak, two things happen: your vocal folds create a sound, and your vocal tract shapes it.
+
+Here's a way to think about it: the vocal folds are like a musician playing a song, and the vocal tract is like the instrument that gives the song its unique sound.
+
+What do you already know about how sound is produced when we speak? Even a rough idea is fine — we'll build from there.`,
+  },
+  centralQuestion: {
+    id: "central-question",
+    title: "The Central Question",
+    subtitle: "What has to be true for communication to be worth the energy?",
+    icon: "target",
+    starterMessage: `This entire course is organized around one question: "What has to be true for linguistic communication to be worth the energy?"
+
+Think about it — speaking is actually expensive. You have to plan what to say, coordinate dozens of muscles, push air through your vocal folds, shape the sound, and hope the listener understands. Sometimes it's easier to just point or grab what you want.
+
+So why do we bother talking? What makes it worth the effort? Share your initial thoughts — there's no wrong answer here.`,
+  },
+  researchMethods: {
+    id: "research-methods",
+    title: "Research Methods Basics",
+    subtitle: "What do p-values and sample size actually mean?",
+    icon: "chart",
+    starterMessage: `Throughout this course, you'll read research articles and need to evaluate whether the findings are trustworthy. Let's make sure you're comfortable with some key concepts.
+
+Let me start with one that confuses a lot of people: the p-value. Have you encountered this term before? What's your current understanding of what it means — even if you're not sure you've got it right?`,
+  },
+  askAnything: {
+    id: "ask-anything",
+    title: "Ask Anything",
+    subtitle: "Explore any concept you're curious about",
+    icon: "message",
+    starterMessage: `Welcome! This is your chance to explore any foundational concept before we dive into the research articles next week.
+
+You might want to ask about:
+- Acoustic terms like formants, F0, or harmonics
+- How speech is measured in clinical settings
+- What to expect in this course
+- Anything else on your mind
+
+What would you like to explore?`,
+  },
+};
+
+// Mirror-first conversation starters for Weeks 2-15
+// These are sent by the Mirror when the student begins a week's conversation
+export const CONVERSATION_STARTERS: Record<number, string> = {
+  2: `This week's article looks at how speech-language pathologists actually use research in practice — and the gap between what we say we value and what we actually do.
+
+Before we dig in: What's your current sense of what "evidence-based practice" means? And do you think most clinicians follow it? Share your honest impression.`,
+
+  3: `This week we're looking at how vocal intensity — basically, how loud someone speaks — can mess up our measurements of voice quality.
+
+Here's the clinical problem: if a patient speaks quietly during an assessment, does that change what we measure? And if so, can we trust those measurements?
+
+What's your intuition before reading the article?`,
+
+  4: `This week's article examines how room acoustics — specifically reverberation — affect the acoustic measures we use to assess voice quality.
+
+Think about it: you might assess a patient in a quiet clinic room one day and a noisy hospital room the next. Should that matter for your measurements?
+
+What's your sense of how much the recording environment might affect acoustic analysis?`,
+
+  5: `Here's a problem you might not have considered: what if the software you use to analyze voice samples gives different results than another equally valid software?
+
+This week's article compares four different acoustic analysis systems measuring the same voices. Spoiler: they don't agree.
+
+Before we explore the findings, what do you think should happen when different software produces different values for the same voice recording?`,
+
+  6: `This week we're exploring why some types of background noise are harder to listen through than others.
+
+Here's the puzzle: steady noise (like a fan) is annoying but manageable. But speech babble — multiple people talking at once — seems disproportionately difficult. Why might that be?
+
+What's your initial guess about why speech-in-speech might be harder than speech-in-noise?`,
+
+  7: `This week's article looks at how context and expectations shape what we hear — especially when the signal is degraded by noise.
+
+Think about this: if I tell you the next word is about "animals" before playing a noisy recording, does that change what you hear? The research suggests it does.
+
+What's your intuition about how much our expectations influence perception versus just passively receiving sound?`,
+
+  8: `Categorical perception is one of the foundational concepts in speech science: the idea that we perceive speech sounds as discrete categories, even though the acoustic signal is continuous.
+
+But this week's article challenges that assumption. The authors argue that phoneme boundaries are more like gradients than walls.
+
+Before we dig in: what's your current understanding of categorical perception? And does it make sense to you that we'd perceive sounds categorically?`,
+
+  9: `This week we're looking at a meta-analysis that asks: which acoustic measures actually predict how listeners perceive voice quality?
+
+This is clinically crucial — we measure all sorts of things (jitter, shimmer, HNR, CPP), but which ones matter for how the voice actually sounds to people?
+
+What's your prediction? Which acoustic measures do you think would best predict perceived voice quality, and why?`,
+
+  10: `The AVQI — Acoustic Voice Quality Index — is a composite measure that combines multiple acoustic parameters into a single number to represent voice quality.
+
+This week's article asks whether that single number is actually valid. Can one index capture the complexity of voice?
+
+What do you think are the advantages and disadvantages of using a composite index versus individual measures?`,
+
+  11: `This week's article reviews what acoustic studies tell us about vowels in both developing speech (children) and disordered speech.
+
+Here's an interesting tension: we know vowels are important for intelligibility, but clinicians often focus more on consonants. Why might that be?
+
+What's your sense of how vowel production changes as children develop, and how it might change in speech disorders?`,
+
+  12: `This week's article explores something surprising: children who only overheard Spanish (without speaking it) still showed better Spanish pronunciation as adults compared to people with no exposure.
+
+This is fascinating for heritage language speakers — passive childhood exposure might leave traces in adult production.
+
+What's your initial reaction to the idea that just hearing a language as a child could affect how you produce it as an adult?`,
+
+  13: `This week's article connects perception and production: it finds that people who are more consistent in how they categorize speech sounds also perform better at understanding speech in noise.
+
+Think about it — the precision of your internal categories might predict how well you handle degraded input.
+
+What's your intuition about why perceptual categorization consistency might relate to speech-in-noise performance?`,
+
+  14: `This week we're looking at how nasalance — the resonance in your nasal cavity — affects measures of voice quality like CPP and HNR.
+
+Here's the problem: CPP is supposed to measure laryngeal function, but if nasal resonance changes CPP values, can we trust what it's telling us?
+
+Before we explore the findings, what's your sense of whether resonance should affect phonation measures?`,
+
+  15: `We've reached the final week. This article is about best practices for conducting high-quality acoustic analysis — essentially, how to do this work reliably in clinical and research settings.
+
+Looking back at everything we've covered (measurement confounds, perception, voice quality, articulation), what do you think are the most important factors for ensuring acoustic measurements are trustworthy?`,
+};
