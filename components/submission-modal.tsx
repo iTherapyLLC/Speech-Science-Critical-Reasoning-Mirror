@@ -30,6 +30,8 @@ interface SubmissionModalProps {
   exchangeCount?: number
   pasteAttempts?: number
   submissionFlagged?: boolean
+  suspectedAIResponses?: number
+  flagReasons?: string[]
 }
 
 export function SubmissionModal({
@@ -44,6 +46,8 @@ export function SubmissionModal({
   exchangeCount,
   pasteAttempts = 0,
   submissionFlagged = false,
+  suspectedAIResponses = 0,
+  flagReasons = [],
 }: SubmissionModalProps) {
   const messageCount = messages.filter(m => m.role === "user").length
 
@@ -75,6 +79,15 @@ export function SubmissionModal({
     setError(null)
 
     try {
+      // Build flag reason from all sources
+      const allFlagReasons: string[] = [...flagReasons]
+      if (pasteAttempts >= 3 && !allFlagReasons.includes("Multiple paste attempts")) {
+        allFlagReasons.push("Multiple paste attempts")
+      }
+      if (suspectedAIResponses >= 2 && !allFlagReasons.includes("Multiple suspected AI responses")) {
+        allFlagReasons.push("Multiple suspected AI responses")
+      }
+
       // Submit to the API
       const response = await fetch("/api/submit", {
         method: "POST",
@@ -86,8 +99,9 @@ export function SubmissionModal({
           reflection: reflection.trim(),
           sessionStartTime: sessionStartTime?.toISOString(),
           pasteAttempts: pasteAttempts ?? 0,
+          suspectedAIResponses: suspectedAIResponses ?? 0,
           submissionFlagged: submissionFlagged ?? false,
-          flagReason: submissionFlagged ? "Multiple paste attempts" : null,
+          flagReasons: allFlagReasons,
         }),
       })
 

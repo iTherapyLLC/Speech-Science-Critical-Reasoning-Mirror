@@ -800,13 +800,41 @@ export default function InstructorPortal() {
                 </span>
                 {selectedSubmission.flagged && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 flex items-center gap-1">
-                    <Flag className="h-3.5 w-3.5" />
-                    Flagged: {selectedSubmission.flag_reason || "Review required"}
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Flagged
                   </span>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Flag details panel - only shown when submission is flagged */}
+          {selectedSubmission.flagged && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <h4 className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Submission Flagged for Review
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <p className="text-red-600 font-medium">Flag Reason</p>
+                  <p className="text-red-800">{selectedSubmission.flag_reason || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="text-red-600 font-medium">Paste Attempts</p>
+                  <p className="text-red-800">{selectedSubmission.paste_attempts || 0}</p>
+                </div>
+                <div>
+                  <p className="text-red-600 font-medium">Suspected AI Responses</p>
+                  <p className="text-red-800">{selectedSubmission.suspected_ai_responses || 0}</p>
+                </div>
+                <div>
+                  <p className="text-red-600 font-medium">Action</p>
+                  <p className="text-red-800 italic">Review conversation below</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-5 gap-6">
             {/* Transcript */}
@@ -1606,8 +1634,11 @@ export default function InstructorPortal() {
                               </span>
                             )}
                             {submission.flagged && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1" title={submission.flag_reason || "Flagged for review"}>
-                                <Flag className="h-3 w-3" />
+                              <span
+                                className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1 cursor-help"
+                                title={`${submission.flag_reason || "Flagged for review"}${submission.paste_attempts ? `\nPaste attempts: ${submission.paste_attempts}` : ''}${submission.suspected_ai_responses ? `\nSuspected AI responses: ${submission.suspected_ai_responses}` : ''}`}
+                              >
+                                <AlertTriangle className="h-3 w-3" />
                                 Flagged
                               </span>
                             )}

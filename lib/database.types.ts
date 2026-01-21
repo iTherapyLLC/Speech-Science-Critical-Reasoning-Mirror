@@ -200,6 +200,7 @@ export interface Database {
           flagged: boolean
           flag_reason: string | null
           paste_attempts: number | null
+          suspected_ai_responses: number | null
           reviewed: boolean
           reviewed_at: string | null
           reviewer_notes: string | null

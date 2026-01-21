@@ -153,6 +153,8 @@ export default function Home() {
   const [showPasteModal, setShowPasteModal] = useState(false)
   const [pasteAttempts, setPasteAttempts] = useState(0)
   const [submissionFlagged, setSubmissionFlagged] = useState(false)
+  const [suspectedAIResponses, setSuspectedAIResponses] = useState(0)
+  const [flagReasons, setFlagReasons] = useState<string[]>([])
   const [showDictationHelp, setShowDictationHelp] = useState(false)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
@@ -476,9 +478,74 @@ export default function Home() {
     [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, isFinalMode, finalPhase, finalPaperSections, studentName, studentProgress, conversationFlow]
   )
 
+  // Detect potential AI-generated responses
+  const detectPotentialAI = useCallback((text: string, exchangeCount: number): boolean => {
+    // Red flags for AI-generated content
+    const redFlags: string[] = []
+
+    // 1. Message over 300 characters in first 2-3 exchanges
+    if (exchangeCount <= 3 && text.length > 300) {
+      redFlags.push("Long response early in conversation")
+    }
+
+    // 2. Markdown formatting (headers, bullets, bold) - strong indicator
+    if (/^#+\s|^\*\s|^-\s|^\d+\.\s|\*\*.*\*\*|__.*__/m.test(text)) {
+      redFlags.push("Markdown formatting detected")
+    }
+
+    // 3. Perfect structure indicators
+    const structuredPhrases = [
+      /^(First|Second|Third|Finally|In conclusion|To summarize|In summary)/im,
+      /^(Here are|There are several|The key (points|takeaways|findings))/im,
+      /^(Let me explain|Allow me to|I would argue that)/im,
+    ]
+    const structuredMatches = structuredPhrases.filter(p => p.test(text)).length
+    if (structuredMatches >= 2) {
+      redFlags.push("Overly structured response")
+    }
+
+    // 4. Academic phrases uncommon in casual conversation
+    const academicPhrases = [
+      /\b(furthermore|moreover|consequently|subsequently|notwithstanding)\b/i,
+      /\b(it is (important|essential|crucial) to note)\b/i,
+      /\b(this (demonstrates|illustrates|highlights|underscores))\b/i,
+      /\b(in (light of|terms of|regard to))\b/i,
+    ]
+    const academicCount = academicPhrases.filter(p => p.test(text)).length
+    if (academicCount >= 2) {
+      redFlags.push("Unusually academic language")
+    }
+
+    // 5. Very long response with perfect punctuation and no hedging
+    const hasHedging = /\b(I think|maybe|probably|I'm not sure|I guess|kind of|sort of|like)\b/i.test(text)
+    const hasPerfectPunctuation = text.split('.').every(s => s.trim() === '' || /^[A-Z]/.test(s.trim()))
+    if (text.length > 400 && !hasHedging && hasPerfectPunctuation) {
+      redFlags.push("Polished response lacking natural hedging")
+    }
+
+    // If 2+ red flags, mark as suspected AI
+    if (redFlags.length >= 2) {
+      setSuspectedAIResponses(prev => prev + 1)
+      setFlagReasons(prev => [...prev, ...redFlags])
+      // Flag submission if 2+ suspected AI responses
+      if (suspectedAIResponses + 1 >= 2) {
+        setSubmissionFlagged(true)
+        if (!flagReasons.includes("Multiple suspected AI responses")) {
+          setFlagReasons(prev => [...prev, "Multiple suspected AI responses"])
+        }
+      }
+      return true
+    }
+    return false
+  }, [suspectedAIResponses, flagReasons])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (input.trim() && !isLoading) {
+      // Check for potential AI-generated content
+      const userMessageCount = messages.filter(m => m.role === "user").length
+      detectPotentialAI(input.trim(), userMessageCount + 1)
+
       sendMessage(input.trim())
       setInput("")
     }
@@ -1589,8 +1656,9 @@ export default function Home() {
                     </motion.button>
                   </div>
                 ) : selectedWeek === 1 ? (
-                  /* Week 1 Foundations - Onboarding with paste policy and guided exploration */
-                  <div className="max-w-2xl space-y-6 text-left">
+                  /* Week 1 Foundations - Complete onboarding with grading rubric and anti-gaming */
+                  <div className="max-w-2xl space-y-6 text-left overflow-y-auto max-h-[calc(100vh-200px)] pr-2">
+                    {/* Welcome Header */}
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1608,6 +1676,7 @@ export default function Home() {
                       </p>
                     </motion.div>
 
+                    {/* No graded conversation note */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1615,10 +1684,88 @@ export default function Home() {
                       className="bg-amber-50 border border-amber-200 rounded-xl p-4"
                     >
                       <p className="text-amber-800 text-sm">
-                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts below. These practice conversations will help you get familiar with the Mirror.
+                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts below and understand how grading works starting Week 2.
                       </p>
                     </motion.div>
 
+                    {/* How Conversations Are Graded */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6 }}
+                      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
+                          <Award className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900">How Conversations Are Graded</h3>
+                      </div>
+
+                      <p className="text-gray-600 text-sm mb-4">
+                        Each weekly conversation is worth <strong>8 points</strong>. The Mirror is designed to <em>help</em> you earn full credit by guiding you through the conversation.
+                      </p>
+
+                      <p className="text-teal-700 text-sm font-medium mb-4 bg-teal-50 p-3 rounded-lg">
+                        You earn points by showing you're THINKING — not by having perfect answers.
+                      </p>
+
+                      <div className="space-y-3">
+                        {/* Engagement */}
+                        <div className="border-l-4 border-blue-400 pl-3">
+                          <p className="text-sm font-semibold text-gray-900">ENGAGEMENT (2 points)</p>
+                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
+                            <li><span className="text-red-500 font-medium">0:</span> Didn't read the article or major misunderstanding</li>
+                            <li><span className="text-amber-500 font-medium">1:</span> Read it but only surface-level understanding</li>
+                            <li><span className="text-green-500 font-medium">2:</span> Shows honest effort to understand what researchers studied and found</li>
+                          </ul>
+                        </div>
+
+                        {/* Evidence */}
+                        <div className="border-l-4 border-purple-400 pl-3">
+                          <p className="text-sm font-semibold text-gray-900">USING EVIDENCE (2 points)</p>
+                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
+                            <li><span className="text-red-500 font-medium">0:</span> No reference to the article, or making things up</li>
+                            <li><span className="text-amber-500 font-medium">1:</span> Vague references ("the study found...")</li>
+                            <li><span className="text-green-500 font-medium">2:</span> Points to specific findings, numbers, or details</li>
+                          </ul>
+                        </div>
+
+                        {/* Critical Questions */}
+                        <div className="border-l-4 border-amber-400 pl-3">
+                          <p className="text-sm font-semibold text-gray-900">ASKING GOOD QUESTIONS (2 points)</p>
+                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
+                            <li><span className="text-red-500 font-medium">0:</span> No questions, accepts everything at face value</li>
+                            <li><span className="text-amber-500 font-medium">1:</span> Asks questions but doesn't explain why they matter</li>
+                            <li><span className="text-green-500 font-medium">2:</span> Identifies something confusing, limited, or worth questioning — and explains why</li>
+                          </ul>
+                        </div>
+
+                        {/* Connections */}
+                        <div className="border-l-4 border-emerald-400 pl-3">
+                          <p className="text-sm font-semibold text-gray-900">MAKING CONNECTIONS (2 points)</p>
+                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
+                            <li><span className="text-red-500 font-medium">0:</span> No connection to real-world application</li>
+                            <li><span className="text-amber-500 font-medium">1:</span> Generic connection ("this is useful for SLPs")</li>
+                            <li><span className="text-green-500 font-medium">2:</span> Specific, thoughtful connection to how this might matter in practice</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-sm text-gray-700">
+                          <strong>TOTAL: 8 points</strong>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          The Mirror naturally guides you through these areas. If something's missing before you submit, it will prompt you. Your job is just to think out loud and engage honestly.
+                        </p>
+                        <p className="text-xs text-teal-600 mt-2 italic">
+                          This is NOT about having right answers. It's about showing your thinking process.
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    {/* One Important Rule - Anti-Gaming Section */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1626,45 +1773,52 @@ export default function Home() {
                       className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
-                          <Mic className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-white" />
                         </div>
-                        <h3 className="font-semibold text-gray-900">How to Enter Your Responses</h3>
+                        <h3 className="font-semibold text-gray-900">One Important Rule</h3>
                       </div>
+
                       <p className="text-gray-600 text-sm mb-4">
-                        The Critical Reasoning Mirror requires you to <strong>THINK as you type</strong>. You have three options:
+                        You must <strong>TYPE</strong> your responses or use <strong>DICTATION</strong> (speech-to-text). You cannot paste text from ChatGPT, Google, or your notes.
                       </p>
-                      <ul className="text-sm text-gray-600 space-y-2 mb-4">
-                        <li className="flex items-start gap-2">
-                          <span className="text-teal-600 font-bold">1.</span>
-                          <span><strong>TYPE</strong> your responses directly</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-teal-600 font-bold">2.</span>
-                          <span><strong>DICTATE</strong> using your device's speech-to-text (Mac, iPhone, Android)</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-teal-600 font-bold">3.</span>
-                          <span>Use <strong>voice input</strong> on mobile</span>
-                        </li>
-                      </ul>
+
+                      <p className="text-gray-600 text-sm mb-4">
+                        <strong>Why?</strong> Pasting bypasses the whole point — which is YOU thinking through the material. Rough, imperfect thoughts you typed yourself are worth more than polished paragraphs from somewhere else.
+                      </p>
+
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                        <p className="text-red-800 text-sm font-medium mb-2">
-                          What you CANNOT do: Copy and paste large blocks of text.
-                        </p>
-                        <p className="text-red-700 text-xs">
-                          Pasting text from ChatGPT, Google, or your notes bypasses the thinking process. The whole point is for YOU to articulate YOUR understanding — even if it's messy or incomplete.
+                        <p className="text-red-800 text-sm font-semibold mb-2">THE SYSTEM DETECTS PASTING:</p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                          <li>• <strong>First attempt:</strong> Warning, paste blocked</li>
+                          <li>• <strong>Second attempt:</strong> Final warning</li>
+                          <li>• <strong>Third attempt:</strong> Submission flagged, possible point deduction</li>
+                        </ul>
+                      </div>
+
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                        <p className="text-amber-800 text-sm font-semibold mb-2">THE MIRROR ALSO RECOGNIZES AI-GENERATED TEXT:</p>
+                        <ul className="text-xs text-amber-700 space-y-1">
+                          <li>• Walls of perfectly structured paragraphs</li>
+                          <li>• Academic language that doesn't match conversation</li>
+                          <li>• Sophisticated terms with no buildup or confusion</li>
+                          <li>• Text that doesn't answer the question asked</li>
+                        </ul>
+                        <p className="text-xs text-amber-600 mt-2 italic">
+                          If the Mirror suspects outsourced thinking, it will ask you to try again in your own words.
                         </p>
                       </div>
+
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                        <p className="text-gray-800 text-sm font-semibold mb-2">THE SYSTEM WILL DETECT PASTING:</p>
+                        <p className="text-gray-800 text-sm font-semibold mb-2">HOW TO ENTER RESPONSES:</p>
                         <ul className="text-xs text-gray-600 space-y-1">
-                          <li>• <strong>First paste:</strong> Warning — paste is blocked</li>
-                          <li>• <strong>Second paste:</strong> Final warning</li>
-                          <li>• <strong>Third paste:</strong> Submission flagged for instructor review</li>
+                          <li>• <strong>Type directly</strong> (recommended)</li>
+                          <li>• <strong>Mac:</strong> Press Fn key twice for dictation</li>
+                          <li>• <strong>iPhone/Android:</strong> Tap microphone icon on keyboard</li>
+                          <li>• <strong>Windows:</strong> Press Win + H</li>
                         </ul>
-                        <p className="text-gray-500 text-xs mt-2 italic">
-                          This isn't about catching you — it's about helping you actually learn. Rough, typed thoughts are worth more than polished, pasted paragraphs.
+                        <p className="text-xs text-gray-500 mt-2 italic">
+                          Students who type their own messy thoughts learn more than those who paste polished AI text.
                         </p>
                       </div>
                     </motion.div>
@@ -2054,6 +2208,8 @@ export default function Home() {
         exchangeCount={conversationFlow.exchangeCount}
         pasteAttempts={pasteAttempts}
         submissionFlagged={submissionFlagged}
+        suspectedAIResponses={suspectedAIResponses}
+        flagReasons={flagReasons}
         onSuccess={() => {
           // Mark the week as complete if it has enough exchanges
           if (studentProgress && selectedWeek >= 2) {

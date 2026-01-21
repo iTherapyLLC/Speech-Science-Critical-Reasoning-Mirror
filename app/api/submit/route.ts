@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
       reflection,
       sessionStartTime,
       pasteAttempts = 0,
+      suspectedAIResponses = 0,
       submissionFlagged = false,
-      flagReason = null
+      flagReasons = []
     } = body;
 
     // Input validation
@@ -90,12 +91,15 @@ export async function POST(request: NextRequest) {
     // Count user messages (exchanges)
     const userMessageCount = messages.filter((m: Message) => m.role === 'user').length;
 
-    console.log(`[${requestId}] Week: ${weekNumber}, Student: ${studentName}, Messages: ${userMessageCount}, Duration: ${sessionDuration}min, PasteAttempts: ${pasteAttempts}, Flagged: ${submissionFlagged}`);
+    console.log(`[${requestId}] Week: ${weekNumber}, Student: ${studentName}, Messages: ${userMessageCount}, Duration: ${sessionDuration}min, PasteAttempts: ${pasteAttempts}, SuspectedAI: ${suspectedAIResponses}, Flagged: ${submissionFlagged}`);
 
     // Try to save to Supabase
     const supabase = getSupabase();
     if (supabase) {
       try {
+        // Combine flag reasons into a single string for the database
+        const flagReasonStr = flagReasons.length > 0 ? flagReasons.join('; ') : null;
+
         const { error: insertError } = await supabase
           .from('submissions')
           .insert({
@@ -107,8 +111,9 @@ export async function POST(request: NextRequest) {
             conversation: messages,
             submitted_at: new Date().toISOString(),
             paste_attempts: pasteAttempts,
+            suspected_ai_responses: suspectedAIResponses,
             flagged: submissionFlagged,
-            flag_reason: flagReason,
+            flag_reason: flagReasonStr,
           });
 
         if (insertError) {
