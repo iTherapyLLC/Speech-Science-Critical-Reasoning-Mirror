@@ -9,7 +9,7 @@ export const acts = [
   {
     number: "I",
     title: "Measurement Confounds",
-    description: "Before we trust data, we learn how data misleads.",
+    description: "Before we trust data, we learn how data can mislead.",
     weeks: "3-5",
     displayLabel: "Act I: Measurement Confounds",
   },
@@ -23,14 +23,14 @@ export const acts = [
   {
     number: "III",
     title: "Voice & Phonation",
-    description: "What does 'voice quality' actually mean?",
+    description: "The voice is where the body meets intention.",
     weeks: "9-11",
     displayLabel: "Act III: Voice & Phonation",
   },
   {
     number: "IV",
     title: "Articulation & Motor Control",
-    description: "Speech is dynamic, not static.",
+    description: "Speech is shaped by what we practice.",
     weeks: "12-14",
     displayLabel: "Act IV: Articulation & Motor Control",
   },
@@ -79,7 +79,7 @@ export const weeksData: WeekData[] = [
     act: "Foundations",
     article: {
       title: "Evidence-Based Practice in Speech-Language Pathology",
-      author: "Greenwell",
+      author: "Greenwell & Walsh",
       notebookLMLink: "https://notebooklm.google.com/notebook/9f12f740-3844-4c4c-86a8-a9b12c477d5a",
     },
   },
@@ -121,11 +121,11 @@ export const weeksData: WeekData[] = [
   {
     week: 6,
     topic: "Noise vs. Speech Masking",
-    teaser: "Different noise, different interference",
+    teaser: "Why do different maskers create different challenges?",
     act: "II",
     article: {
       title: "Predictors of Susceptibility to Noise and Speech Masking",
-      author: "Lalonde",
+      author: "Lalonde & Werner",
       notebookLMLink: "https://notebooklm.google.com/notebook/edf1d395-8ff8-47c5-9e1a-a19db25ba5ac",
     },
   },
@@ -143,11 +143,11 @@ export const weeksData: WeekData[] = [
   {
     week: 8,
     topic: "Categorical Perception Revisited",
-    teaser: "Boundaries are gradients, not walls",
+    teaser: "Are phoneme boundaries walls or gradients?",
     act: "II",
     article: {
-      title: "The Myth of Categorical Perception",
-      author: "McMurray",
+      title: "Categorical Perception Critique Synthesis",
+      author: "CP Critique Synthesis",
       notebookLMLink: "https://notebooklm.google.com/notebook/50dceb54-5b42-4766-9f6a-6c0b4ae5d5d4",
     },
   },
@@ -155,67 +155,69 @@ export const weeksData: WeekData[] = [
   {
     week: 9,
     topic: "Acoustic Voice Quality Meta-analysis",
-    teaser: "What predicts perceived quality?",
+    teaser: "Which acoustic measures predict perceived voice quality?",
     act: "III",
     article: {
       title: "Acoustic Measurement of Overall Voice Quality: A Meta-Analysis",
-      author: "Maryn",
+      author: "Maryn et al.",
       notebookLMLink: "https://notebooklm.google.com/notebook/429a9940-d212-46db-9a80-b95c2b8dcdcf",
     },
+    // Note: Midterm Exam due end of this week (March 22, 2026)
   },
   {
     week: 10,
     topic: "AVQI Validity",
-    teaser: "Can one index capture voice?",
+    teaser: "Can a composite index capture voice quality?",
     act: "III",
     article: {
       title: "Meta-Analysis on the Validity of the Acoustic Voice Quality Index",
-      author: "Barsties",
+      author: "Barsties et al.",
       notebookLMLink: "https://notebooklm.google.com/notebook/c1979f7d-5d31-4db8-8cff-7ab835c10b0b",
     },
+    // Note: Spring Break follows (March 30 - April 3)
   },
   {
     week: 11,
     topic: "Vowels in Developing & Disordered Speech",
-    teaser: "Formants as clinical markers",
+    teaser: "Why do vowels matter more than we thought?",
     act: "III",
     article: {
       title: "What Acoustic Studies Tell Us About Vowels in Developing and Disordered Speech",
-      author: "Kent",
+      author: "Kent & Vorperian",
       notebookLMLink: "https://notebooklm.google.com/notebook/ba082bbe-270a-4975-bf45-c6233424f6fb",
     },
   },
   // Act IV: Articulation & Motor Control (Weeks 12-14)
   {
     week: 12,
-    topic: "VOT & Phonetic Timing",
-    teaser: "Milliseconds matter",
+    topic: "Production Benefits of Overhearing",
+    teaser: "Can passive childhood exposure shape adult pronunciation?",
     act: "IV",
     article: {
       title: "Production Benefits of Childhood Overhearing",
-      author: "Knightly",
+      author: "Knightly et al.",
       notebookLMLink: "https://notebooklm.google.com/notebook/5df087ac-83a0-4172-bd00-df28a8885fa9",
     },
   },
   {
     week: 13,
-    topic: "Categorization Consistency",
-    teaser: "How reliably do we classify speech sounds?",
+    topic: "Categorization & Speech-in-Noise",
+    teaser: "What predicts success in understanding speech in noise?",
     act: "IV",
     article: {
       title: "Consistency in Phonetic Categorization Predicts Speech-in-Noise Perception",
-      author: "Rizzi",
+      author: "Rizzi & Bidelman",
       notebookLMLink: "https://notebooklm.google.com/notebook/4b4c1a43-08fc-456d-ae93-05b4c643020f",
     },
   },
   {
     week: 14,
     topic: "Nasalance Effects on CPP",
-    teaser: "When resonance affects phonation measures",
+    teaser: "Is CPP a pure measure of laryngeal function?",
     act: "IV",
     article: {
       title: "The Impact of Nasalance on Cepstral Peak Prominence and HNR",
-      author: "Madill",
+      author: "Nasalance Study",
       notebookLMLink: "https://notebooklm.google.com/notebook/dc093f57-06d2-4420-a9c5-5064e7f7ef90",
     },
   },
@@ -223,12 +225,13 @@ export const weeksData: WeekData[] = [
   {
     week: 15,
     topic: "High-Quality Acoustic Analysis",
-    teaser: "Best practices for clinical measurement",
+    teaser: "How do you conduct high-quality acoustic analysis in clinical practice?",
     act: "Finale",
     article: {
       title: "Conducting High-Quality and Reliable Acoustic Analysis",
-      author: "Murray",
+      author: "Murray et al.",
       notebookLMLink: "https://notebooklm.google.com/notebook/e0211310-4d37-4f1a-a41a-e2140f591e90",
     },
+    // Note: Final Exam due May 14, 2026
   },
 ]

@@ -92,20 +92,23 @@ const triggerConfetti = () => {
   }, 250)
 }
 
-// Week-specific conversation starters
+// Week-specific conversation starters - matched to SLHS 303 syllabus
 const weekConversationStarters: Record<number, string> = {
+  // Week 1: No graded conversation - handled separately in UI
   2: "What surprised you most about how SLPs actually use research in their daily practice?",
-  3: "Before reading this article, how did you think voice quality was measured?",
-  4: "The source-filter theory is foundational. What's still confusing to you about it?",
-  5: "How would you explain vowel formants to someone who has never heard the term?",
-  6: "What assumptions did you have about how we measure speech clarity?",
-  7: "How do you think age affects the voice, and did this article confirm or challenge your assumptions?",
-  8: "What's your intuition about how we recognize voices? What did this article add?",
-  10: "How do listeners handle speech that's been distorted or degraded?",
-  11: "What's the relationship between where sound hits the cochlea and what pitch we perceive?",
-  12: "How much does context shape what we actually hear?",
-  13: "How do clinical populations differ in speech production and perception?",
-  14: "What connects accent, perception, and clinical practice?",
+  3: "How does vocal intensity confound jitter and shimmer measurements?",
+  4: "Which acoustic measures survive environmental noise, and which don't?",
+  5: "Why do different software tools give different numbers for the same voice sample?",
+  6: "Why do different maskers create different challenges for listeners?",
+  7: "How do expectations help and hurt speech perception in noise?",
+  8: "Are phoneme boundaries walls or gradients? What does the evidence say?",
+  9: "Which acoustic measures actually predict perceived voice quality?",
+  10: "Can a composite index like AVQI truly capture voice quality?",
+  11: "Why do vowels matter more than we thought in development and disorders?",
+  12: "Can passive childhood exposure shape adult pronunciation?",
+  13: "What predicts success in understanding speech in noise?",
+  14: "Is CPP a pure measure of laryngeal function, or is it confounded?",
+  15: "How do you conduct high-quality acoustic analysis in clinical practice?",
 }
 
 // Animation variants

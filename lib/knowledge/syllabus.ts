@@ -40,20 +40,32 @@ UNIFYING FRAMEWORK: SOURCE-FILTER THEORY
 THEMATIC THREADS (Connections across weeks)
 ================================================================================
 
-1. CPP/CPPS (Cepstral Peak Prominence)
-   - Appears in: Weeks 9, 10, 14
+1. CPP/CPPS THREAD (Cepstral Peak Prominence)
+   - Appears in: Week 4 → Week 9 → Week 10 → Week 14
    - Why it matters: Composite measure of voice quality that shows up repeatedly
    - Key insight: A single number trying to capture something complex
+   - Week 4: CPP sensitivity to reverberation
+   - Week 9: CPP as predictor of perceived voice quality
+   - Week 10: CPP as component of AVQI
+   - Week 14: CPP confounded by nasalance
 
-2. MEASUREMENT VALIDITY
-   - Appears in: Weeks 3, 4, 5, 9, 10
+2. MEASUREMENT VALIDITY THREAD
+   - Appears in: Week 3 → Week 4 → Week 5 → Week 9 → Week 14
    - Why it matters: Before trusting data, understand how data can mislead
    - Key insight: The same voice can produce different measurements depending on context
+   - Week 3: Intensity confounds perturbation measures
+   - Week 4: Environment confounds acoustic measures
+   - Week 5: Software confounds values
+   - Week 9: What measures actually predict perception?
+   - Week 14: Resonance confounds phonation measures
 
-3. PERCEPTION-PRODUCTION LINK
-   - Appears in: Weeks 6, 7, 8, 12, 13
+3. PERCEPTION-PRODUCTION THREAD
+   - Appears in: Week 8 → Week 12 → Week 13
    - Why it matters: Speech perception and production are intertwined
    - Key insight: How you perceive affects how you produce, and vice versa
+   - Week 8: Categorical perception is more gradient than we thought
+   - Week 12: Passive exposure shapes production
+   - Week 13: Perceptual categorization predicts SIN performance
 
 ================================================================================
 ACT STRUCTURE
@@ -76,13 +88,13 @@ Theme: "The signal is never clean."
 - Week 8: Why categorical perception is more gradient than we thought
 
 ACT III: VOICE & PHONATION (Weeks 9-11)
-Theme: "What does 'voice quality' actually mean?"
+Theme: "The voice is where the body meets intention."
 - Week 9: Which acoustic measures predict perceived voice quality
 - Week 10: The validity of AVQI as a composite measure
 - Week 11: What acoustic studies reveal about vowels in development/disorder
 
 ACT IV: ARTICULATION & MOTOR CONTROL (Weeks 12-14)
-Theme: "Speech is dynamic, not static."
+Theme: "Speech is shaped by what we practice."
 - Week 12: How passive childhood exposure shapes adult pronunciation
 - Week 13: How perceptual categorization predicts speech-in-noise success
 - Week 14: How nasalance affects CPP measurements
@@ -354,12 +366,12 @@ export const ACTS = {
   actIII: {
     name: "Voice & Phonation",
     weeks: [9, 10, 11],
-    theme: "What does 'voice quality' actually mean?",
+    theme: "The voice is where the body meets intention.",
   },
   actIV: {
     name: "Articulation & Motor Control",
     weeks: [12, 13, 14],
-    theme: "Speech is dynamic, not static.",
+    theme: "Speech is shaped by what we practice.",
   },
   finale: {
     name: "Course Finale",
@@ -387,18 +399,42 @@ export const WEEKLY_ARTICLES = {
 
 export const THEMATIC_THREADS = {
   cppCpps: {
-    name: "CPP/CPPS",
-    weeks: [9, 10, 14],
+    name: "CPP/CPPS Thread",
+    weeks: [4, 9, 10, 14],
     description: "Composite measure of voice quality that shows up repeatedly",
+    weekDetails: {
+      4: "CPP sensitivity to reverberation",
+      9: "CPP as predictor of perceived voice quality",
+      10: "CPP as component of AVQI",
+      14: "CPP confounded by nasalance",
+    },
   },
   measurementValidity: {
-    name: "Measurement Validity",
-    weeks: [3, 4, 5, 9, 10],
+    name: "Measurement Validity Thread",
+    weeks: [3, 4, 5, 9, 14],
     description: "Before trusting data, understand how data can mislead",
+    weekDetails: {
+      3: "Intensity confounds perturbation measures",
+      4: "Environment confounds acoustic measures",
+      5: "Software confounds values",
+      9: "What measures actually predict perception?",
+      14: "Resonance confounds phonation measures",
+    },
   },
   perceptionProduction: {
-    name: "Perception-Production Link",
-    weeks: [6, 7, 8, 12, 13],
+    name: "Perception-Production Thread",
+    weeks: [8, 12, 13],
     description: "Speech perception and production are intertwined",
+    weekDetails: {
+      8: "Categorical perception is more gradient than we thought",
+      12: "Passive exposure shapes production",
+      13: "Perceptual categorization predicts SIN performance",
+    },
   },
+};
+
+export const KEY_DATES = {
+  midtermDue: "March 22, 2026",
+  springBreak: "March 30 - April 3, 2026",
+  finalExam: "May 14, 2026",
 };
