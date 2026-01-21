@@ -27,6 +27,9 @@ import {
   Award,
   Shield,
   AlertTriangle,
+  Mic,
+  HelpCircle,
+  Flag,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -152,6 +155,8 @@ export default function Home() {
   const [input, setInput] = useState("")
   const [showPasteModal, setShowPasteModal] = useState(false)
   const [pasteAttempts, setPasteAttempts] = useState(0)
+  const [submissionFlagged, setSubmissionFlagged] = useState(false)
+  const [showDictationHelp, setShowDictationHelp] = useState(false)
   const [showSubmissionModal, setShowSubmissionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [breakReminderShown, setBreakReminderShown] = useState(false)
@@ -486,7 +491,12 @@ export default function Home() {
     const pastedText = e.clipboardData.getData('text')
     if (pastedText.length > 50) {
       e.preventDefault()
-      setPasteAttempts(prev => prev + 1)
+      const newAttemptCount = pasteAttempts + 1
+      setPasteAttempts(newAttemptCount)
+      // Flag submission on 3rd attempt
+      if (newAttemptCount >= 3) {
+        setSubmissionFlagged(true)
+      }
       setShowPasteModal(true)
       setInput("")
     }
@@ -1582,12 +1592,13 @@ export default function Home() {
                     </motion.button>
                   </div>
                 ) : selectedWeek === 1 ? (
-                  /* Week 1 Foundations - No graded conversation */
-                  <div className="max-w-lg space-y-8">
+                  /* Week 1 Foundations - Onboarding with paste policy */
+                  <div className="max-w-2xl space-y-6 text-left">
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ delay: 0.3, type: "spring" }}
+                      className="text-center"
                     >
                       <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-xl shadow-amber-500/30">
                         <BookOpen className="w-10 h-10 text-white" />
@@ -1598,9 +1609,65 @@ export default function Home() {
                       <p className="text-gray-600 text-lg leading-relaxed mb-4">
                         This week we're building vocabulary and frameworks that will support everything that follows.
                       </p>
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                        <p className="text-amber-800 text-sm">
-                          <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts: source-filter theory, acoustic properties, and the Shannon-Weaver model.
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      className="bg-amber-50 border border-amber-200 rounded-xl p-4"
+                    >
+                      <p className="text-amber-800 text-sm">
+                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts: source-filter theory, acoustic properties, and the Shannon-Weaver model.
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
+                          <Mic className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900">How to Enter Your Responses</h3>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-4">
+                        The Critical Reasoning Mirror requires you to <strong>THINK as you type</strong>. You have three options:
+                      </p>
+                      <ul className="text-sm text-gray-600 space-y-2 mb-4">
+                        <li className="flex items-start gap-2">
+                          <span className="text-teal-600 font-bold">1.</span>
+                          <span><strong>TYPE</strong> your responses directly</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-teal-600 font-bold">2.</span>
+                          <span><strong>DICTATE</strong> using your device's speech-to-text (Mac, iPhone, Android)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-teal-600 font-bold">3.</span>
+                          <span>Use <strong>voice input</strong> on mobile</span>
+                        </li>
+                      </ul>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                        <p className="text-red-800 text-sm font-medium mb-2">
+                          What you CANNOT do: Copy and paste large blocks of text.
+                        </p>
+                        <p className="text-red-700 text-xs">
+                          Pasting text from ChatGPT, Google, or your notes bypasses the thinking process. The whole point is for YOU to articulate YOUR understanding — even if it's messy or incomplete.
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-gray-800 text-sm font-semibold mb-2">THE SYSTEM WILL DETECT PASTING:</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          <li>• <strong>First paste:</strong> Warning — paste is blocked</li>
+                          <li>• <strong>Second paste:</strong> Final warning</li>
+                          <li>• <strong>Third paste:</strong> Submission flagged for instructor review</li>
+                        </ul>
+                        <p className="text-gray-500 text-xs mt-2 italic">
+                          This isn't about catching you — it's about helping you actually learn. Rough, typed thoughts are worth more than polished, pasted paragraphs.
                         </p>
                       </div>
                     </motion.div>
@@ -1727,7 +1794,37 @@ export default function Home() {
                   </Button>
                 </motion.div>
               </form>
-              <p className="text-xs text-gray-400 text-center mt-2 max-w-4xl mx-auto">Responses must be typed directly.</p>
+              <div className="flex items-center justify-center gap-2 mt-2 max-w-4xl mx-auto">
+                <p className="text-xs text-gray-400">Responses must be typed directly.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowDictationHelp(!showDictationHelp)}
+                  className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1 transition-colors"
+                >
+                  <Mic className="h-3 w-3" />
+                  Use dictation
+                  <HelpCircle className="h-3 w-3" />
+                </button>
+              </div>
+              <AnimatePresence>
+                {showDictationHelp && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="max-w-md mx-auto mt-3 bg-teal-50 border border-teal-200 rounded-xl p-4 text-left"
+                  >
+                    <p className="text-sm text-teal-800 font-medium mb-2">You can speak your responses instead of typing:</p>
+                    <ul className="text-xs text-teal-700 space-y-1">
+                      <li><strong>Mac:</strong> Press Fn key twice, or Edit → Start Dictation</li>
+                      <li><strong>iPhone/iPad:</strong> Tap the microphone icon on keyboard</li>
+                      <li><strong>Android:</strong> Tap the microphone icon on keyboard</li>
+                      <li><strong>Windows:</strong> Press Win + H</li>
+                    </ul>
+                    <p className="text-xs text-teal-600 mt-2 italic">Speaking your thoughts often helps you think more naturally than typing.</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </div>
@@ -1801,7 +1898,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* Paste Detection Modal */}
+      {/* Paste Detection Modal - Escalating Warnings */}
       <AnimatePresence>
         {showPasteModal && (
           <motion.div
@@ -1817,24 +1914,76 @@ export default function Home() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8"
             >
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <AlertTriangle className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                Typing Required
-              </h2>
-              <p className="text-gray-600 text-center mb-8">
-                The Critical Reasoning Mirror requires you to type your responses directly. Pasting text from other sources is not permitted for graded conversations.
-              </p>
+              {pasteAttempts === 1 ? (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                    <AlertTriangle className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                    Pasting Detected — First Warning
+                  </h2>
+                  <p className="text-gray-600 text-center mb-4">
+                    The Critical Reasoning Mirror requires typed or dictated responses. Pasting bypasses the thinking process this tool is designed to support.
+                  </p>
+                  <p className="text-amber-700 text-center text-sm font-medium mb-4">
+                    This is your first warning. You have one more chance before your submission is flagged.
+                  </p>
+                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                    <p className="text-sm text-gray-700 font-medium mb-2">Options for entering responses:</p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Type directly</li>
+                      <li>• Use speech-to-text (built into Mac, iOS, Android)</li>
+                      <li>• Use voice input on mobile</li>
+                    </ul>
+                  </div>
+                </>
+              ) : pasteAttempts === 2 ? (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                    <AlertTriangle className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                    Pasting Detected — Final Warning
+                  </h2>
+                  <p className="text-red-600 text-center text-sm font-semibold mb-4">
+                    This is your second paste attempt. One more will flag your submission for instructor review and may result in point deduction.
+                  </p>
+                  <p className="text-gray-600 text-center mb-6">
+                    If you're struggling to articulate your thoughts, that's okay — type what you're thinking, even if it's incomplete. The Mirror will help you develop your ideas.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-500/30">
+                    <Flag className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-red-700 text-center mb-2">
+                    Submission Flagged
+                  </h2>
+                  <p className="text-gray-600 text-center mb-4">
+                    You have attempted to paste text three times. This conversation has been flagged for instructor review.
+                  </p>
+                  <p className="text-gray-600 text-center mb-6">
+                    You may continue the conversation by typing your responses, but your instructor will be notified of the paste attempts when you submit.
+                  </p>
+                </>
+              )}
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   onClick={() => {
                     setShowPasteModal(false)
                     setInput("")
                   }}
-                  className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/25"
+                  className={cn(
+                    "w-full rounded-xl shadow-lg",
+                    pasteAttempts >= 3
+                      ? "bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-red-500/25"
+                      : pasteAttempts === 2
+                      ? "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-orange-500/25"
+                      : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25"
+                  )}
                 >
-                  I Understand
+                  {pasteAttempts >= 3 ? "Continue" : pasteAttempts === 2 ? "I Understand - I Will Type My Responses" : "I Understand"}
                 </Button>
               </motion.div>
             </motion.div>
@@ -1852,6 +2001,8 @@ export default function Home() {
         sessionStartTime={sessionStartTime}
         areasAddressed={conversationFlow.areasAddressed}
         exchangeCount={conversationFlow.exchangeCount}
+        pasteAttempts={pasteAttempts}
+        submissionFlagged={submissionFlagged}
         onSuccess={() => {
           // Mark the week as complete if it has enough exchanges
           if (studentProgress && selectedWeek >= 2) {

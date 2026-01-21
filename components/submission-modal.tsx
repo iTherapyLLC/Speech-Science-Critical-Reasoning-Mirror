@@ -28,6 +28,8 @@ interface SubmissionModalProps {
   onSuccess?: () => void
   areasAddressed?: AreasAddressed
   exchangeCount?: number
+  pasteAttempts?: number
+  submissionFlagged?: boolean
 }
 
 export function SubmissionModal({
@@ -40,6 +42,8 @@ export function SubmissionModal({
   onSuccess,
   areasAddressed,
   exchangeCount,
+  pasteAttempts = 0,
+  submissionFlagged = false,
 }: SubmissionModalProps) {
   const messageCount = messages.filter(m => m.role === "user").length
 
@@ -81,6 +85,9 @@ export function SubmissionModal({
           studentName,
           reflection: reflection.trim(),
           sessionStartTime: sessionStartTime?.toISOString(),
+          pasteAttempts: pasteAttempts ?? 0,
+          submissionFlagged: submissionFlagged ?? false,
+          flagReason: submissionFlagged ? "Multiple paste attempts" : null,
         }),
       })
 

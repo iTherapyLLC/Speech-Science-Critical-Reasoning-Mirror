@@ -148,6 +148,7 @@ export default function InstructorPortal() {
   const [weekFilter, setWeekFilter] = useState<string>("all")
   const [sectionFilter, setSectionFilter] = useState<string>("all")
   const [unreviewedOnly, setUnreviewedOnly] = useState(false)
+  const [flaggedOnly, setFlaggedOnly] = useState(false)
 
   // Grading state
   const [isSaving, setIsSaving] = useState(false)
@@ -211,10 +212,13 @@ export default function InstructorPortal() {
           .map(s => s.email)
         filtered = filtered.filter((s: SubmissionDetail) => studentEmails.includes(s.student_email))
       }
+      if (flaggedOnly) {
+        filtered = filtered.filter((s: SubmissionDetail) => s.flagged)
+      }
       setSubmissions(filtered)
     }
     setIsLoading(false)
-  }, [password, weekFilter, sectionFilter, unreviewedOnly, students])
+  }, [password, weekFilter, sectionFilter, unreviewedOnly, flaggedOnly, students])
 
   const fetchStudents = useCallback(async () => {
     const params = new URLSearchParams()
@@ -794,6 +798,12 @@ export default function InstructorPortal() {
                 <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
                   {Math.round(selectedSubmission.duration_minutes)} min
                 </span>
+                {selectedSubmission.flagged && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 flex items-center gap-1">
+                    <Flag className="h-3.5 w-3.5" />
+                    Flagged: {selectedSubmission.flag_reason || "Review required"}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1540,6 +1550,19 @@ export default function InstructorPortal() {
                   />
                   <span className="text-sm text-gray-700">Ungraded only</span>
                 </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={flaggedOnly}
+                    onChange={(e) => setFlaggedOnly(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-red-700 flex items-center gap-1">
+                    <Flag className="h-3 w-3" />
+                    Flagged only
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -1580,6 +1603,12 @@ export default function InstructorPortal() {
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 Needs grading
+                              </span>
+                            )}
+                            {submission.flagged && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1" title={submission.flag_reason || "Flagged for review"}>
+                                <Flag className="h-3 w-3" />
+                                Flagged
                               </span>
                             )}
                           </div>

@@ -199,6 +199,7 @@ export interface Database {
           score: number | null
           flagged: boolean
           flag_reason: string | null
+          paste_attempts: number | null
           reviewed: boolean
           reviewed_at: string | null
           reviewer_notes: string | null

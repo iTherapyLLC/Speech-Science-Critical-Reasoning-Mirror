@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
       messages,
       studentName,
       reflection,
-      sessionStartTime
+      sessionStartTime,
+      pasteAttempts = 0,
+      submissionFlagged = false,
+      flagReason = null
     } = body;
 
     // Input validation
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
     // Count user messages (exchanges)
     const userMessageCount = messages.filter((m: Message) => m.role === 'user').length;
 
-    console.log(`[${requestId}] Week: ${weekNumber}, Student: ${studentName}, Messages: ${userMessageCount}, Duration: ${sessionDuration}min`);
+    console.log(`[${requestId}] Week: ${weekNumber}, Student: ${studentName}, Messages: ${userMessageCount}, Duration: ${sessionDuration}min, PasteAttempts: ${pasteAttempts}, Flagged: ${submissionFlagged}`);
 
     // Try to save to Supabase
     const supabase = getSupabase();
@@ -103,6 +106,9 @@ export async function POST(request: NextRequest) {
             session_duration_minutes: sessionDuration,
             conversation: messages,
             submitted_at: new Date().toISOString(),
+            paste_attempts: pasteAttempts,
+            flagged: submissionFlagged,
+            flag_reason: flagReason,
           });
 
         if (insertError) {
