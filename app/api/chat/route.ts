@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
-import { CONVERSATION_STARTERS, WEEKLY_ARTICLES } from '@/lib/knowledge/syllabus';
+import {
+  CONVERSATION_STARTERS,
+  WEEKLY_ARTICLES,
+  WEEK_REASONING_CONTENT,
+  WEEK_1_PRACTICE_QUESTIONS
+} from '@/lib/knowledge/syllabus';
 import { weeksData } from '@/lib/weeks-data';
 
 // Timeout for API requests (90 seconds)
@@ -9,28 +14,11 @@ const API_TIMEOUT_MS = 90000;
 
 // Input validation limits
 const MAX_MESSAGE_LENGTH = 10000;
-const MAX_HISTORY_LENGTH = 100;
 const MAX_WEEK_NUMBER = 15;
-
-// Week 1 opener (foundation week - no article)
-const WEEK_1_OPENER = `Let's explore the foundations of speech science together.
-
-Here's my first question: What do you think sound actually IS? Like, physically — what's happening when you hear someone talk?
-
-Hint: Think about what's traveling through the air. You might remember something about waves or vibrations.`;
-
-// Helper to get week opener - uses CONVERSATION_STARTERS from syllabus for weeks 2-15
-function getWeekOpener(weekNumber: number): string {
-  if (weekNumber === 1) {
-    return WEEK_1_OPENER;
-  }
-  // Use the comprehensive starters from syllabus.ts, with fallback
-  return CONVERSATION_STARTERS[weekNumber] || CONVERSATION_STARTERS[2];
-}
 
 // Helper to get article info for a week
 function getArticleInfo(weekNumber: number): { title: string; author: string } | null {
-  if (weekNumber === 1) return null; // No article for Week 1
+  if (weekNumber === 1) return null;
   return WEEKLY_ARTICLES[weekNumber as keyof typeof WEEKLY_ARTICLES] || null;
 }
 
@@ -40,39 +28,41 @@ function getWeekTopic(weekNumber: number): string {
   return week?.topic || `Week ${weekNumber}`;
 }
 
-// Follow-up question templates
-const FOLLOW_UP_TEMPLATES = {
-  2: `Good. So they wanted to know about [TOPIC].
+// Helper to get week reasoning content
+function getWeekReasoning(weekNumber: number) {
+  return WEEK_REASONING_CONTENT[weekNumber] || WEEK_REASONING_CONTENT[2];
+}
 
-Now, what did they actually find? Did most SLPs use research regularly, or not? What did the results show?`,
+// Get the first question for a week using scientific reasoning structure
+function getFirstQuestion(weekNumber: number): string {
+  if (weekNumber === 1) {
+    // Week 1: Practice week - first practice question
+    return `Welcome! This is a practice conversation to help you get comfortable with the format.
 
-  3: `You mentioned [TOPIC].
+Here's my first question: ${WEEK_1_PRACTICE_QUESTIONS[0]}
 
-Can you give me a specific number or percentage from the article? For example, "X% of clinicians said..." or "The study found that X out of Y..."
+Take your best guess — there's no wrong answer here.`;
+  }
 
-This shows you engaged with the actual data.`,
+  const articleInfo = getArticleInfo(weekNumber);
+  const reasoning = getWeekReasoning(weekNumber);
+  const weekTopic = getWeekTopic(weekNumber);
 
-  4: `Nice. Was there anything else that stood out? Another finding, or something that surprised you?
+  return `This week we're discussing "${articleInfo?.title}" by ${articleInfo?.author}.
 
-If nothing specific comes to mind, just tell me what you remember — even small details count.`,
+**Question 1 — THE CLAIM:**
 
-  5: `Now let's think critically. Every study has limitations. Here are some common ones:
-- Small sample size
-- Only surveyed one type of clinician
-- People might not answer surveys honestly
-- The study is old
-- The conditions weren't realistic
+This article makes claims about ${weekTopic.toLowerCase()}. Pick ONE specific claim — something like "X causes Y" or "When A happens, B changes."
 
-Did you notice anything like that? Or was there something that confused you about the study?`,
+${reasoning.keyClaimExamples.length > 0 ? `For example, a claim from this article might be:
+${reasoning.keyClaimExamples.map(c => `• "${c}"`).join('\n')}` : ''}
 
-  6: `Last question. Imagine you're an SLP working in a school or clinic. Based on what this article found, is there anything you might do differently? Or anything you'd want to be aware of?
+What's one specific claim you noticed in this article?`;
+}
 
-Even a simple answer works, like: "I'd want to make sure I actually look up research instead of just guessing" or "This makes me think I should ask where recommendations come from."`,
-};
-
-// Brief encouragements after each question
+// Brief encouragements between questions
 const ENCOURAGEMENTS = [
-  "", // Q1 - no encouragement needed, just the question
+  "", // Q1
   "Good. Keep going.",
   "You're halfway there.",
   "Nice thinking.",
@@ -99,13 +89,12 @@ export async function POST(request: NextRequest) {
       message,
       conversationHistory = [],
       weekNumber = 2,
-      questionNumber = 1,
       studentName = "Student"
     } = body;
 
     // Handle __START__ message - return first question
     if (message === "__START__") {
-      const opener = getWeekOpener(weekNumber);
+      const opener = getFirstQuestion(weekNumber);
       return NextResponse.json({
         response: opener,
         questionComplete: false,
@@ -160,7 +149,6 @@ export async function POST(request: NextRequest) {
         response: crisisCheck.type === 'others' ? HARM_RESPONSE : CRISIS_RESPONSE,
         isCrisisIntervention: true,
         weekNumber: parsedWeekNumber,
-        questionNumber,
         questionComplete: false,
         conversationComplete: false,
       });
@@ -168,101 +156,24 @@ export async function POST(request: NextRequest) {
 
     // Calculate which question we're on based on conversation length
     const userMessageCount = conversationHistory.filter((m: { role: string }) => m.role === 'user').length;
-    const currentQ = userMessageCount + 1; // Adding 1 because current message isn't in history yet
+    const currentQ = userMessageCount + 1;
 
-    // Get article info for this week
+    // Get week-specific content
     const articleInfo = getArticleInfo(parsedWeekNumber);
     const weekTopic = getWeekTopic(parsedWeekNumber);
+    const reasoning = getWeekReasoning(parsedWeekNumber);
+    const isWeek1 = parsedWeekNumber === 1;
 
-    // Build system prompt
-    const systemPrompt = `You are the Critical Reasoning Mirror — a supportive tutor helping undergraduate students think through a research article.
-
-THIS WEEK'S ARTICLE:
-${articleInfo ? `- Title: "${articleInfo.title}"
-- Author(s): ${articleInfo.author}
-- Topic: ${weekTopic}` : `- Week 1: Foundations (no article — exploring basic concepts)`}
-
-CRITICAL CONTEXT ABOUT YOUR STUDENTS:
-- These students have never done critical thinking exercises before
-- Many are first-generation college students working 25+ hours a week
-- Zero out of 37 knew who Socrates was
-- One student asked "What do we say?" — they literally don't know how to start
-- They are scared and think they're going to fail
-- They need someone in their corner
-- Science is about EFFORT, not perfection
-
-YOU ARE THE SPARK. THEIR BRAIN IS THE TINDER.
-
-You light the fire. You do ALL the heavy lifting. They just respond to your prompts.
-
-YOUR APPROACH:
-
-1. BE WARM AND ENCOURAGING
-   - "Good start!"
-   - "That's a solid observation."
-   - "You're on the right track."
-   - "Nice — you remembered a specific detail."
-
-2. DRAW OUT MORE WHEN ANSWERS ARE THIN
-   - "Can you say a little more about that?"
-   - "What made you think that?"
-   - "Is there anything else you noticed?"
-
-3. NEVER MAKE THEM FEEL STUPID
-   - If wrong: "Interesting — what in the article made you think that?"
-   - If stuck: "That's okay. Take a guess — there's no wrong answer here."
-   - If minimal: "Good start. Can you add one more detail?"
-
-4. KEEP IT SHORT
-   - 2-4 sentences max per response
-   - Don't write paragraphs
-   - Get to the point
-
-CURRENT STATE:
-- Week: ${parsedWeekNumber}
-- Question: ${currentQ} of 6
-- Student: ${studentName}
-
-YOUR TASK NOW:
-The student just answered question ${currentQ}.
-
-${currentQ < 6 ? `
-Acknowledge their answer briefly and positively, then ask the NEXT question.
-
-Question ${currentQ + 1} should focus on:
-${currentQ === 1 ? "What did the researchers actually FIND? What were the results?" : ""}
-${currentQ === 2 ? "Can they give a SPECIFIC number, percentage, or finding from the article?" : ""}
-${currentQ === 3 ? "Was there anything else that stood out, surprised them, or that they remember?" : ""}
-${currentQ === 4 ? "What are the LIMITATIONS or things that confused them about the study?" : ""}
-${currentQ === 5 ? "How might this research matter for CLINICIANS in practice?" : ""}
-
-Add a brief encouragement: "${ENCOURAGEMENTS[currentQ] || ''}"
-
-Remember: Provide context and hints. Make it easy for them to answer.
-` : `
-This is their LAST answer. Acknowledge it warmly and wrap up.
-
-Say something like:
-"Great job! You've just thought through all the key parts of this article — what it was about, what they found, what the limitations might be, and why it matters.
-
-Now you're ready to write your reflection. The template will make it easy — just summarize what you told me."
-
-DO NOT ask another question. The conversation is complete.
-`}
-
-NEVER:
-- Ask vague, open-ended questions without hints
-- Give them the answer directly
-- Make them feel stupid
-- Use jargon or complex language
-- Write long paragraphs
-- Let them off the hook with "I don't know" (redirect warmly)
-
-ALWAYS:
-- Provide context before asking
-- Give hints about where to find answers
-- Validate their responses before moving on
-- Keep the energy positive and encouraging`;
+    // Build the scientific reasoning system prompt
+    const systemPrompt = buildScientificReasoningPrompt({
+      weekNumber: parsedWeekNumber,
+      articleInfo,
+      weekTopic,
+      reasoning,
+      currentQ,
+      studentName,
+      isWeek1,
+    });
 
     // Build messages array for Claude
     const claudeMessages = conversationHistory.map((msg: { role: string; content: string }) => ({
@@ -270,7 +181,6 @@ ALWAYS:
       content: msg.content,
     }));
 
-    // Add current user message
     claudeMessages.push({
       role: 'user',
       content: message,
@@ -292,7 +202,7 @@ ALWAYS:
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 500, // Keep responses short
+          max_tokens: 600,
           system: systemPrompt,
           messages: claudeMessages,
         }),
@@ -344,9 +254,228 @@ ALWAYS:
   }
 }
 
+// Build the scientific reasoning system prompt
+function buildScientificReasoningPrompt(params: {
+  weekNumber: number;
+  articleInfo: { title: string; author: string } | null;
+  weekTopic: string;
+  reasoning: typeof WEEK_REASONING_CONTENT[number];
+  currentQ: number;
+  studentName: string;
+  isWeek1: boolean;
+}): string {
+  const { weekNumber, articleInfo, weekTopic, reasoning, currentQ, studentName, isWeek1 } = params;
+
+  // Week 1 has a simpler prompt (practice week, no article)
+  if (isWeek1) {
+    return buildWeek1Prompt(currentQ, studentName);
+  }
+
+  return `You are the Critical Reasoning Mirror — a supportive tutor teaching undergraduate students SCIENTIFIC REASONING through a research article.
+
+THIS WEEK'S ARTICLE:
+- Title: "${articleInfo?.title}"
+- Author(s): ${articleInfo?.author}
+- Topic: ${weekTopic}
+
+WEEK-SPECIFIC CONTENT TO USE:
+- Key insight: "${reasoning.keyInsight}"
+- Assumption to probe: "${reasoning.assumptionToProbe}"
+- Common confounds: ${reasoning.commonConfounds.map(c => `"${c}"`).join(', ')}
+
+CRITICAL CONTEXT ABOUT YOUR STUDENTS:
+- These students have NEVER done critical thinking exercises before
+- Zero out of 37 knew who Socrates was
+- One asked "What do we say?" — they literally don't know how to start
+- They are scared and think they're going to fail
+- They need someone in their corner
+- Science is about EFFORT, not perfection
+
+YOU ARE THE SPARK. THEIR BRAIN IS THE TINDER.
+
+You light the fire. You do ALL the heavy lifting. They just respond to your prompts.
+
+SCIENTIFIC REASONING STRUCTURE (6 Questions):
+Your questions guide students through this reasoning chain:
+1. THE CLAIM — Identify a specific claim from the article
+2. WHY IT MATTERS — Explain clinical relevance
+3. THE EVIDENCE — Find specific data supporting the claim
+4. THE ASSUMPTION — Identify what has to be true for the claim to work
+5. THE PROBLEM/CONFOUND — What could explain results differently?
+6. BETTER TEST + TAKEAWAY — How to fix it? What do they actually trust?
+
+CURRENT STATE:
+- Week: ${weekNumber}
+- Question: ${currentQ} of 6
+- Student: ${studentName}
+
+YOUR TASK NOW:
+The student just answered question ${currentQ}.
+
+${getQuestionGuidance(currentQ, reasoning)}
+
+YOUR APPROACH:
+1. Start every exchange with brief validation ("Good start!", "Nice observation.")
+2. If answer is thin: "Can you say a little more?" or "What made you think that?"
+3. If stuck: "That's okay. Take a guess — there's no wrong answer here."
+4. If wrong: "Interesting — what in the article made you think that?"
+5. Keep responses to 2-4 sentences max
+6. Always provide hints and examples for the next question
+
+NEVER:
+- Ask vague questions without context or hints
+- Give them the answer directly
+- Make them feel stupid
+- Use jargon without immediately explaining it
+- Write long paragraphs
+- Let them off with "I don't know" (redirect warmly)
+
+ALWAYS:
+- Validate before moving on
+- Give specific examples of what good answers look like
+- Reference THIS article's content
+- Keep energy positive and encouraging`;
+}
+
+// Get question-specific guidance for the system prompt
+function getQuestionGuidance(currentQ: number, reasoning: typeof WEEK_REASONING_CONTENT[number]): string {
+  if (currentQ >= 6) {
+    return `This is their LAST answer. Acknowledge it warmly and wrap up.
+
+Say something like:
+"You did it! You just worked through the scientific reasoning process:
+- You identified a claim
+- You found the evidence
+- You spotted an assumption
+- You thought of what could go wrong
+- You proposed a better test
+- You decided what you actually trust
+
+This is exactly how scientists think. Now click Continue to write your reflection — the template matches what we just talked through."
+
+DO NOT ask another question. The conversation is complete.`;
+  }
+
+  const guidance: Record<number, string> = {
+    1: `Acknowledge their claim, then ask Question 2 — WHY IT MATTERS:
+
+"Good. You identified: [restate their claim briefly].
+
+Now, why would that claim matter for someone working with patients? Even a guess is fine. Think: If this is true, what would a clinician need to know or do differently?"
+
+${ENCOURAGEMENTS[1]}`,
+
+    2: `Acknowledge their clinical connection, then ask Question 3 — THE EVIDENCE:
+
+"Nice. What EVIDENCE did the researchers give for that claim?
+
+Look for specific numbers, percentages, or findings. Something like 'X% of participants...' or 'The results showed that...'
+
+What evidence supports the claim you picked?"
+
+${ENCOURAGEMENTS[2]}`,
+
+    3: `Acknowledge their evidence, then ask Question 4 — THE ASSUMPTION:
+
+"Good — you found specific data. Now here's where we think critically.
+
+For their claim to be true, what has to be ASSUMED? An assumption is something that has to be true for their conclusion to work, but they didn't directly test.
+
+Examples of assumptions:
+• They assumed the measurement was accurate
+• They assumed participants answered honestly
+• They assumed their sample represented the real population
+• ${reasoning.assumptionToProbe}
+
+What assumption did you notice, or what would HAVE to be true for their claim to work?"
+
+${ENCOURAGEMENTS[3]}`,
+
+    4: `Acknowledge their assumption, then ask Question 5 — THE CONFOUND:
+
+"Nice thinking. Now here's the key critical reasoning skill: What's a CONFOUND?
+
+A confound is something ELSE that could explain their results — something OTHER than what they're claiming.
+
+Common confounds for this study:
+${reasoning.commonConfounds.map(c => `• ${c}`).join('\n')}
+
+What's one thing that could mess up their results or explain their findings differently?"
+
+${ENCOURAGEMENTS[4]}`,
+
+    5: `Acknowledge their confound, then ask Question 6 — BETTER TEST + TAKEAWAY:
+
+"Good critical thinking! Last question — two parts:
+
+1. How could they FIX that problem in a future study? What would make you trust the results more?
+
+2. Given everything we discussed — what do you ACTUALLY trust from this article? What's the takeaway you'd feel confident using in clinical practice?"
+
+${ENCOURAGEMENTS[5]}`,
+  };
+
+  return guidance[currentQ] || guidance[1];
+}
+
+// Build Week 1 practice prompt (no article)
+function buildWeek1Prompt(currentQ: number, studentName: string): string {
+  return `You are the Critical Reasoning Mirror — a supportive tutor helping students explore foundational speech science concepts.
+
+THIS IS WEEK 1: PRACTICE WEEK (No article — exploring basic concepts)
+
+CRITICAL CONTEXT:
+- This is their FIRST conversation with you
+- They have never done critical thinking exercises
+- They are nervous and don't know what to expect
+- This week is UNGRADED practice
+- Goal: Get comfortable with the format
+
+CURRENT STATE:
+- Week: 1 (Practice)
+- Question: ${currentQ} of 6
+- Student: ${studentName}
+
+PRACTICE QUESTIONS FOR WEEK 1:
+1. What is sound? How does it travel?
+2. What's the difference between frequency and amplitude?
+3. Why does speech feel automatic, and why is that a problem for scientists?
+4. What does 'falsifiable' mean? Why does it matter?
+5. Why might two clinicians disagree even with the same evidence?
+6. What's one thing you're curious about in speech science?
+
+YOUR TASK:
+${currentQ < 6 ? `
+The student just answered question ${currentQ}.
+
+Acknowledge their answer warmly (even if it's not perfect — this is practice!), then ask question ${currentQ + 1}:
+
+"${WEEK_1_PRACTICE_QUESTIONS[currentQ]}"
+
+Be encouraging. This is about getting comfortable, not being right.
+` : `
+This is their last answer. Wrap up warmly:
+
+"Great job! You just completed your first Mirror conversation.
+
+This week was practice — no grades, no pressure. You explored some foundational concepts that we'll build on all semester.
+
+Starting next week, you'll read research articles and use a scientific reasoning template. But the format will feel familiar now.
+
+Click Continue to see what the reflection looks like (this week it's simplified since there was no article)."
+
+DO NOT ask another question.`}
+
+KEEP IT SIMPLE:
+- 2-3 sentences max
+- Celebrate any attempt
+- No jargon
+- Extra encouraging since this is their first time`;
+}
+
 export async function GET() {
   return NextResponse.json({
     status: 'SLHS 303 Chat API is running',
-    version: '2.0 - Spoon-fed 6-question format'
+    version: '3.0 - Scientific Reasoning Structure'
   });
 }

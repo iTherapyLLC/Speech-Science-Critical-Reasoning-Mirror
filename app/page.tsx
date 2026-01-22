@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, Circle, Lock, Loader2, Copy, ArrowRight } from "lucide-react"
+import { Check, Circle, Lock, Loader2, Copy, ArrowRight, HelpCircle, X } from "lucide-react"
 import { weeksData } from "@/lib/weeks-data"
+import { WORKED_EXAMPLE } from "@/lib/knowledge/syllabus"
 
 // ============================================================================
 // TYPES
@@ -111,6 +112,9 @@ export default function Home() {
   // Paste detection (silent)
   const [pasteAttempts, setPasteAttempts] = useState(0)
   const [flagged, setFlagged] = useState(false)
+
+  // Example modal
+  const [showExample, setShowExample] = useState(false)
 
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -728,25 +732,59 @@ export default function Home() {
                   Write your reflection (100-200 words)
                 </h2>
                 <p className="text-slate-600 mt-2">
-                  This is what gets graded. Use the template below.
-                  Just fill in the blanks based on your conversation.
+                  Use the scientific reasoning template below. Fill in each blank based on your conversation.
                 </p>
               </div>
 
-              {/* Template */}
-              <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
-                <p className="font-bold mb-2">REFLECTION TEMPLATE (fill in the blanks):</p>
-                <div className="space-y-2">
-                  <p>The article I read was about _______.</p>
-                  <p>The researchers found that _______.</p>
-                  <p>One specific finding I remember is _______.</p>
-                  <p>Something that confused me or seemed like a limitation was _______. This matters because _______.</p>
-                  <p>This research might matter for clinicians because _______.</p>
+              {/* Scientific Reasoning Template - Week 1 vs Weeks 2-15 */}
+              {selectedWeek === 1 ? (
+                // Week 1: Simplified template (practice week, no article)
+                <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-bold mb-2">WEEK 1 REFLECTION (simplified — this is practice):</p>
+                  <div className="space-y-2">
+                    <p>• Today I learned _______.</p>
+                    <p>• One question I have is _______.</p>
+                    <p>• Something that surprised me was _______.</p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Weeks 2-15: Scientific Reasoning Template
+                <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-bold mb-3">SCIENTIFIC REASONING TEMPLATE:</p>
+                  <div className="space-y-3">
+                    <p><strong>THE CLAIM:</strong> One thing this article claims is that _______.</p>
+                    <p><strong>WHY IT MATTERS:</strong> This matters for clinicians because _______.</p>
+                    <p><strong>THE ASSUMPTION:</strong> For this to be true, we have to assume that _______.</p>
+                    <p><strong>THE PROBLEM:</strong> But what if _______? That would mess up the results.</p>
+                    <p><strong>A BETTER WAY:</strong> To fix this, researchers could _______.</p>
+                    <p><strong>MY TAKEAWAY:</strong> So what I actually trust from this article is _______.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Hints and Example button for scientific reasoning template */}
+              {selectedWeek !== 1 && (
+                <div className="space-y-2">
+                  <div className="bg-slate-100 rounded-xl p-3 text-xs text-slate-600">
+                    <p className="font-medium mb-1">HINTS (if you're stuck):</p>
+                    <ul className="space-y-1">
+                      <li>• "The assumption" = What has to be true for their claim to work?</li>
+                      <li>• "The problem" = What could have gone wrong? (sample size, measurement error, environment)</li>
+                      <li>• "A better way" = How could they control for that problem?</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={() => setShowExample(true)}
+                    className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    See a worked example
+                  </button>
+                </div>
+              )}
 
               {/* Conversation Reference */}
-              <div className="bg-slate-50 rounded-xl p-4 max-h-48 overflow-y-auto">
+              <div className="bg-slate-50 rounded-xl p-4 max-h-40 overflow-y-auto">
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                   Your Conversation (use this to fill in the template)
                 </p>
@@ -765,7 +803,10 @@ export default function Home() {
                   onChange={(e) => setReflection(e.target.value)}
                   onPaste={handlePaste}
                   className="flex-1 min-h-48 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
-                  placeholder="The article I read was about..."
+                  placeholder={selectedWeek === 1
+                    ? "Today I learned..."
+                    : "THE CLAIM: One thing this article claims is that..."
+                  }
                 />
                 <div className="flex justify-between items-center mt-2 text-sm">
                   <span className={wordCount < 100 ? "text-amber-600" : wordCount > 250 ? "text-amber-600" : "text-green-600"}>
@@ -866,6 +907,57 @@ export default function Home() {
           </motion.div>
         )}
 
+      </AnimatePresence>
+
+      {/* Example Modal */}
+      <AnimatePresence>
+        {showExample && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowExample(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                <h3 className="font-bold text-slate-900">Example Reflection</h3>
+                <button
+                  onClick={() => setShowExample(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Here's a complete example from <strong>Week {WORKED_EXAMPLE.week}: {WORKED_EXAMPLE.topic}</strong>
+                </p>
+                <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap font-sans">
+                  {WORKED_EXAMPLE.reflection}
+                </div>
+                <p className="text-xs text-slate-500 text-center">
+                  ({WORKED_EXAMPLE.wordCount} words)
+                </p>
+                <p className="text-sm text-slate-600">
+                  Notice how each section directly answers the template prompts. Your reflection should follow the same structure.
+                </p>
+                <button
+                  onClick={() => setShowExample(false)}
+                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  Got it
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   )

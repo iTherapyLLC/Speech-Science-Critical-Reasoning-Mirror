@@ -572,3 +572,244 @@ Before we explore the findings, what's your sense of whether resonance should af
 
 Looking back at everything we've covered (measurement confounds, perception, voice quality, articulation), what do you think are the most important factors for ensuring acoustic measurements are trustworthy?`,
 };
+
+// Week-specific scientific reasoning content for the Mirror
+// Used to guide students through Claim → Evidence → Assumption → Confound → Better Test → Takeaway
+export const WEEK_REASONING_CONTENT: Record<number, {
+  keyClaimExamples: string[];
+  keyInsight: string;
+  assumptionToProbe: string;
+  commonConfounds: string[];
+}> = {
+  1: {
+    // Week 1 is practice - no article
+    keyClaimExamples: [],
+    keyInsight: "This is a practice week to get comfortable with the conversation format.",
+    assumptionToProbe: "",
+    commonConfounds: [],
+  },
+  2: {
+    keyClaimExamples: [
+      "Most SLPs report barriers to using research",
+      "Time and workload are the biggest barriers to evidence-based practice",
+      "Training predicts EBP use but only explains 17% of variance",
+    ],
+    keyInsight: "Evidence constrains what you can justify — it doesn't tell you what to do.",
+    assumptionToProbe: "They assumed clinicians answered honestly about their practices.",
+    commonConfounds: [
+      "Self-report bias (people say what sounds good)",
+      "Sample may not represent all SLPs",
+      "Survey questions may have been leading",
+    ],
+  },
+  3: {
+    keyClaimExamples: [
+      "Jitter and shimmer improve when people speak louder",
+      "Increased intensity reduces perturbation measures",
+      "Vocal intensity affects acoustic measurements even in healthy voices",
+    ],
+    keyInsight: "If intensity is uncontrolled, pathology effects can disappear or reverse.",
+    assumptionToProbe: "They assumed only intensity changed, not other factors like posture or effort.",
+    commonConfounds: [
+      "Patients might also be more relaxed at louder volumes",
+      "Microphone distance might have changed",
+      "Speaking effort affects more than just loudness",
+    ],
+  },
+  4: {
+    keyClaimExamples: [
+      "Reverberation alters acoustic measures",
+      "CPP is robust to room acoustics but shimmer collapses",
+      "Recording environment affects measurement reliability",
+    ],
+    keyInsight: "Measurement = signal + assumptions + environment + analyst.",
+    assumptionToProbe: "They assumed the recording environment was the only variable affecting measurements.",
+    commonConfounds: [
+      "Different rooms have different background noise",
+      "Microphone type and placement varied",
+      "Time of day might affect voice quality",
+    ],
+  },
+  5: {
+    keyClaimExamples: [
+      "Different software gives different results for the same recording",
+      "Praat, MDVP, and other systems don't agree on values",
+      "Software defaults embed theoretical assumptions",
+    ],
+    keyInsight: "Software defaults encode assumptions that users rarely question.",
+    assumptionToProbe: "They assumed software should agree if measuring the same thing.",
+    commonConfounds: [
+      "Different algorithms use different definitions",
+      "Default settings vary between programs",
+      "User expertise affects how software is used",
+    ],
+  },
+  6: {
+    keyClaimExamples: [
+      "Multitalker babble is harder than steady-state noise",
+      "Speech maskers cause more problems than noise maskers",
+      "Informational masking taxes cognition, not just audibility",
+    ],
+    keyInsight: "Informational masking taxes cognition, not just audibility.",
+    assumptionToProbe: "They assumed all noise masks speech the same way.",
+    commonConfounds: [
+      "Babble contains meaningful words that distract",
+      "Attention and cognitive load weren't measured",
+      "Familiarity with the babble language matters",
+    ],
+  },
+  7: {
+    keyClaimExamples: [
+      "Context boosts speech-in-noise performance",
+      "Older adults benefit more from context than younger adults",
+      "Expectations shape what we perceive in degraded conditions",
+    ],
+    keyInsight: "Good perception doesn't mean better ears — it often means better inference.",
+    assumptionToProbe: "They assumed context effects are purely auditory, not cognitive.",
+    commonConfounds: [
+      "Vocabulary knowledge affects context use",
+      "Working memory wasn't controlled",
+      "Real conversations have more context than lab tasks",
+    ],
+  },
+  8: {
+    keyClaimExamples: [
+      "Classic categorical perception effects are task artifacts",
+      "Phoneme boundaries are gradients, not walls",
+      "Listeners show gradient sensitivity to acoustic differences",
+    ],
+    keyInsight: "Expecting sharper categories can be the wrong therapeutic goal.",
+    assumptionToProbe: "They assumed perception is categorical rather than gradient.",
+    commonConfounds: [
+      "Lab tasks force categorical responses",
+      "Natural speech has more variation than synthesized stimuli",
+      "Response bias affects category judgments",
+    ],
+  },
+  9: {
+    keyClaimExamples: [
+      "Many acoustic measures correlate weakly with perception",
+      "CPP/CPPS are stronger predictors than jitter or shimmer",
+      "Composite measures outperform individual measures",
+    ],
+    keyInsight: "Not all measures deserve equal trust.",
+    assumptionToProbe: "They assumed acoustic measures reflect what listeners actually hear.",
+    commonConfounds: [
+      "Perceptual ratings are subjective",
+      "Different listeners weight features differently",
+      "Recording quality affects both acoustics and perception",
+    ],
+  },
+  10: {
+    keyClaimExamples: [
+      "AVQI shows strong validity across languages",
+      "Composite indices can capture voice quality better than single measures",
+      "Validity varies by population and language",
+    ],
+    keyInsight: "Meta-analysis reveals which tools survive replication.",
+    assumptionToProbe: "They assumed validity in one population transfers to others.",
+    commonConfounds: [
+      "Different languages have different phonetic inventories",
+      "Clinical populations differ from research samples",
+      "Threshold values may not generalize",
+    ],
+  },
+  11: {
+    keyClaimExamples: [
+      "Vowels dominate the acoustic stream",
+      "Standard tests underrepresent vowel deficits",
+      "Vowel errors can persist even when consonants look fine",
+    ],
+    keyInsight: "Vowel errors can persist even when consonant assessments look fine.",
+    assumptionToProbe: "They assumed consonant-focused assessments capture the full picture.",
+    commonConfounds: [
+      "Tests were designed for consonants",
+      "Connected speech shows different patterns than single words",
+      "Intelligibility depends on more than accuracy",
+    ],
+  },
+  12: {
+    keyClaimExamples: [
+      "Overhearing improves pronunciation without grammar",
+      "Passive childhood exposure affects adult production",
+      "Heritage speakers show production benefits from early exposure",
+    ],
+    keyInsight: "The system learns distributions, not rules.",
+    assumptionToProbe: "They assumed language learning requires direct instruction.",
+    commonConfounds: [
+      "Heritage speakers may have had some active exposure",
+      "Motivation differs between heritage and L2 learners",
+      "Phonetic detail vs. grammatical knowledge are separate",
+    ],
+  },
+  13: {
+    keyClaimExamples: [
+      "Listener consistency predicts speech-in-noise success",
+      "Individual differences in categorization matter clinically",
+      "Perceptual variability is information, not noise",
+    ],
+    keyInsight: "Perceptual variability is not noise — it is information.",
+    assumptionToProbe: "They assumed variability indicates poor perception.",
+    commonConfounds: [
+      "Task demands affect consistency",
+      "Attention and fatigue weren't controlled",
+      "Training might improve consistency",
+    ],
+  },
+  14: {
+    keyClaimExamples: [
+      "Nasalance affects CPP independently of laryngeal function",
+      "Resonance changes can look like voice changes",
+      "CPP isn't a pure measure of phonation",
+    ],
+    keyInsight: "A good metric can still answer the wrong question.",
+    assumptionToProbe: "They assumed CPP reflects only voice quality, not resonance.",
+    commonConfounds: [
+      "Nasal passages differ between people",
+      "Velopharyngeal function wasn't directly measured",
+      "Vowel context affects nasalance",
+    ],
+  },
+  15: {
+    keyClaimExamples: [
+      "Default settings encode adult-male assumptions",
+      "Pitch range settings affect measurement validity",
+      "Children's speech requires different analysis parameters",
+    ],
+    keyInsight: "Children's speech is not small adult speech.",
+    assumptionToProbe: "They assumed one-size-fits-all analysis settings work for everyone.",
+    commonConfounds: [
+      "Software manuals don't emphasize population differences",
+      "Clinicians may not know to adjust settings",
+      "Pediatric norms are less established",
+    ],
+  },
+};
+
+// Week 1 practice questions (no article)
+export const WEEK_1_PRACTICE_QUESTIONS = [
+  "What is sound? How does it travel from one person to another?",
+  "What's the difference between frequency (pitch) and amplitude (loudness)?",
+  "Why does speech feel automatic when we do it, and why is that a problem for scientists studying it?",
+  "What does 'falsifiable' mean? Why does it matter for science?",
+  "Why might two clinicians disagree even when they have the same evidence?",
+  "What's one thing you're curious about in speech science?",
+];
+
+// Worked example for students
+export const WORKED_EXAMPLE = {
+  week: 3,
+  topic: "Acoustic Perturbation Measures",
+  reflection: `THE CLAIM: The article claims that jitter and shimmer improve when people speak louder, even if nothing changed in their voice box.
+
+WHY IT MATTERS: This matters because a clinician might think treatment worked when really the patient just talked louder the second time.
+
+THE ASSUMPTION: For this to be true, we have to assume that loudness was the only thing that changed between recordings.
+
+THE PROBLEM: But what if the patient was also more relaxed, or the microphone was closer? That would mess up the results too.
+
+A BETTER WAY: To fix this, researchers could use a loudness target (like a meter showing dB) so everyone speaks at the same level.
+
+MY TAKEAWAY: So what I actually trust is that jitter/shimmer numbers can change for reasons that have nothing to do with actual voice improvement. I'd want to control loudness before trusting those numbers.`,
+  wordCount: 142,
+};
