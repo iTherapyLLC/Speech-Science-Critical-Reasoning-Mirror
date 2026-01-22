@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check, Circle, Lock, Loader2, Copy, ArrowRight } from "lucide-react"
+import { weeksData } from "@/lib/weeks-data"
 
 // ============================================================================
 // TYPES
@@ -23,28 +24,20 @@ type Screen =
   | "final"
 
 // ============================================================================
-// WEEK DATA
+// WEEK DATA - Uses weeksData from lib/weeks-data.ts
 // ============================================================================
 
 const COURSE_START = new Date('2026-01-20')
 
-const WEEKS = [
-  { week: 1, title: "Foundations & Orientation", graded: false },
-  { week: 2, title: "Evidence-Based Practice", graded: true },
-  { week: 3, title: "Acoustic Perturbation Measures", graded: true },
-  { week: 4, title: "Reverberation & Measurement", graded: true },
-  { week: 5, title: "Software Comparability", graded: true },
-  { week: 6, title: "Noise vs. Speech Masking", graded: true },
-  { week: 7, title: "Context in Speech-in-Noise", graded: true },
-  { week: 8, title: "Categorical Perception", graded: true },
-  { week: 9, title: "Voice Quality Meta-analysis", graded: true },
-  { week: 10, title: "AVQI Validity", graded: true },
-  { week: 11, title: "Vowels in Speech", graded: true },
-  { week: 12, title: "Production Benefits of Overhearing", graded: true },
-  { week: 13, title: "Categorization & Speech-in-Noise", graded: true },
-  { week: 14, title: "Nasalance Effects on CPP", graded: true },
-  { week: 15, title: "High-Quality Acoustic Analysis", graded: true },
-]
+// Transform weeksData for display (adding graded flag)
+const WEEKS = weeksData.map(w => ({
+  week: w.week,
+  title: w.topic,
+  graded: w.week !== 1, // Week 1 is ungraded foundation week
+  article: w.article,
+  teaser: w.teaser,
+  notebookLMLink: w.article?.notebookLMLink,
+}))
 
 const WEEK_UNLOCK_DATES = [
   new Date('2026-01-20'), // Week 1

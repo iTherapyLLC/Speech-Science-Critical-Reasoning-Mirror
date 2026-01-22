@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
+import { CONVERSATION_STARTERS, WEEKLY_ARTICLES } from '@/lib/knowledge/syllabus';
+import { weeksData } from '@/lib/weeks-data';
 
 // Timeout for API requests (90 seconds)
 const API_TIMEOUT_MS = 90000;
@@ -10,98 +12,33 @@ const MAX_MESSAGE_LENGTH = 10000;
 const MAX_HISTORY_LENGTH = 100;
 const MAX_WEEK_NUMBER = 15;
 
-// Week-specific first questions
-const WEEK_OPENERS: Record<number, string> = {
-  1: `Let's explore the foundations of speech science together.
+// Week 1 opener (foundation week - no article)
+const WEEK_1_OPENER = `Let's explore the foundations of speech science together.
 
 Here's my first question: What do you think sound actually IS? Like, physically — what's happening when you hear someone talk?
 
-Hint: Think about what's traveling through the air. You might remember something about waves or vibrations.`,
+Hint: Think about what's traveling through the air. You might remember something about waves or vibrations.`;
 
-  2: `This article looked at how speech-language pathologists use research in their practice.
+// Helper to get week opener - uses CONVERSATION_STARTERS from syllabus for weeks 2-15
+function getWeekOpener(weekNumber: number): string {
+  if (weekNumber === 1) {
+    return WEEK_1_OPENER;
+  }
+  // Use the comprehensive starters from syllabus.ts, with fallback
+  return CONVERSATION_STARTERS[weekNumber] || CONVERSATION_STARTERS[2];
+}
 
-Here's my first question: What were the researchers trying to find out?
+// Helper to get article info for a week
+function getArticleInfo(weekNumber: number): { title: string; author: string } | null {
+  if (weekNumber === 1) return null; // No article for Week 1
+  return WEEKLY_ARTICLES[weekNumber as keyof typeof WEEKLY_ARTICLES] || null;
+}
 
-Hint: Look at the introduction or research questions. You might see something like "This study examined..." or "The purpose was to..."`,
-
-  3: `This article examined how speaking louder affects voice measurements — specifically things like jitter and shimmer.
-
-Here's my first question: What were the researchers trying to figure out?
-
-Hint: They were curious about what happens to these measurements when someone speaks at different loudness levels. Look for the main research question.`,
-
-  4: `This article studied how room acoustics — like echo and reverb — affect voice recordings and measurements.
-
-Here's my first question: What problem were the researchers investigating?
-
-Hint: Think about what happens to sound in different rooms. A small office sounds different from a gym, right?`,
-
-  5: `This article compared different software programs that measure voice — like Praat, MDVP, and others.
-
-Here's my first question: What was the main issue the researchers wanted to explore?
-
-Hint: If different programs give different numbers for the same voice, that's a problem. Look for their research question.`,
-
-  6: `This article looked at how people understand speech when there's background noise — and how different types of noise affect this differently.
-
-Here's my first question: What were the researchers trying to understand?
-
-Hint: There's a difference between noise that's just sound (like static) and noise that's other people talking. The study explored this difference.`,
-
-  7: `This article studied how context and expectations help us understand speech when it's hard to hear.
-
-Here's my first question: What question were the researchers trying to answer?
-
-Hint: Think about how knowing the topic of a conversation might help you understand words you couldn't hear clearly.`,
-
-  8: `This article challenged some of what we thought we knew about categorical perception — the idea that we hear speech sounds as distinct categories.
-
-Here's my first question: What were the researchers questioning or investigating?
-
-Hint: Traditional thinking says we hear "ba" or "pa" but nothing in between. This study looked at whether that's really true.`,
-
-  9: `This article was a meta-analysis looking at which acoustic measurements best predict how people perceive voice quality.
-
-Here's my first question: What were the researchers trying to figure out across all these studies?
-
-Hint: They combined results from many studies to see which measurements are most useful for understanding voice quality.`,
-
-  10: `This article examined the validity of the Acoustic Voice Quality Index (AVQI) — a composite measure of voice quality.
-
-Here's my first question: What were the researchers investigating about AVQI?
-
-Hint: They wanted to know how well this index actually measures what it's supposed to measure.`,
-
-  11: `This article looked at what acoustic studies can tell us about vowels in children's speech and in speech disorders.
-
-Here's my first question: What main topic were the researchers reviewing?
-
-Hint: Vowels are different from consonants, and they develop differently. The article looks at what acoustic research tells us.`,
-
-  12: `This article studied whether hearing a language as a child — even without speaking it — affects how you produce sounds as an adult.
-
-Here's my first question: What were the researchers investigating?
-
-Hint: They looked at people who heard a language growing up but didn't actively learn it. Can that passive exposure still help later?`,
-
-  13: `This article examined what predicts how well someone can understand speech in noisy environments.
-
-Here's my first question: What were the researchers trying to understand?
-
-Hint: Some people are better at understanding speech in noise than others. The study looked at what might explain these differences.`,
-
-  14: `This article studied how nasality in speech affects a specific voice measurement called CPP (Cepstral Peak Prominence).
-
-Here's my first question: What problem were the researchers investigating?
-
-Hint: If nasality changes CPP measurements, that could affect how we interpret those measurements clinically.`,
-
-  15: `This article discussed best practices for conducting high-quality acoustic analysis in clinical and research settings.
-
-Here's my first question: What main issue or question does the article address?
-
-Hint: Think about all the things that can go wrong with acoustic measurements. What should clinicians be careful about?`,
-};
+// Helper to get week topic
+function getWeekTopic(weekNumber: number): string {
+  const week = weeksData.find(w => w.week === weekNumber);
+  return week?.topic || `Week ${weekNumber}`;
+}
 
 // Follow-up question templates
 const FOLLOW_UP_TEMPLATES = {
@@ -168,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Handle __START__ message - return first question
     if (message === "__START__") {
-      const opener = WEEK_OPENERS[weekNumber] || WEEK_OPENERS[2];
+      const opener = getWeekOpener(weekNumber);
       return NextResponse.json({
         response: opener,
         questionComplete: false,
@@ -233,8 +170,17 @@ export async function POST(request: NextRequest) {
     const userMessageCount = conversationHistory.filter((m: { role: string }) => m.role === 'user').length;
     const currentQ = userMessageCount + 1; // Adding 1 because current message isn't in history yet
 
+    // Get article info for this week
+    const articleInfo = getArticleInfo(parsedWeekNumber);
+    const weekTopic = getWeekTopic(parsedWeekNumber);
+
     // Build system prompt
     const systemPrompt = `You are the Critical Reasoning Mirror — a supportive tutor helping undergraduate students think through a research article.
+
+THIS WEEK'S ARTICLE:
+${articleInfo ? `- Title: "${articleInfo.title}"
+- Author(s): ${articleInfo.author}
+- Topic: ${weekTopic}` : `- Week 1: Foundations (no article — exploring basic concepts)`}
 
 CRITICAL CONTEXT ABOUT YOUR STUDENTS:
 - These students have never done critical thinking exercises before
