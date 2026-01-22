@@ -1,18 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectCrisis, CRISIS_RESPONSE, HARM_RESPONSE } from '@/lib/crisis-detection';
 import { logCrisisIncident } from '@/lib/supabase';
-import { RESEARCH_METHODS_PRIMER } from '@/lib/knowledge';
 
-// Timeout for API requests (90 seconds - Claude can take a while for long conversations)
+// Timeout for API requests (90 seconds)
 const API_TIMEOUT_MS = 90000;
 
-// Maximum conversation turns before warning (each turn = user + assistant message)
-const MAX_CONVERSATION_TURNS = 50;
-
 // Input validation limits
-const MAX_MESSAGE_LENGTH = 10000; // 10k characters per message
-const MAX_HISTORY_LENGTH = 100; // Max messages in history
+const MAX_MESSAGE_LENGTH = 10000;
+const MAX_HISTORY_LENGTH = 100;
 const MAX_WEEK_NUMBER = 15;
+
+// Week-specific first questions
+const WEEK_OPENERS: Record<number, string> = {
+  1: `Let's explore the foundations of speech science together.
+
+Here's my first question: What do you think sound actually IS? Like, physically — what's happening when you hear someone talk?
+
+Hint: Think about what's traveling through the air. You might remember something about waves or vibrations.`,
+
+  2: `This article looked at how speech-language pathologists use research in their practice.
+
+Here's my first question: What were the researchers trying to find out?
+
+Hint: Look at the introduction or research questions. You might see something like "This study examined..." or "The purpose was to..."`,
+
+  3: `This article examined how speaking louder affects voice measurements — specifically things like jitter and shimmer.
+
+Here's my first question: What were the researchers trying to figure out?
+
+Hint: They were curious about what happens to these measurements when someone speaks at different loudness levels. Look for the main research question.`,
+
+  4: `This article studied how room acoustics — like echo and reverb — affect voice recordings and measurements.
+
+Here's my first question: What problem were the researchers investigating?
+
+Hint: Think about what happens to sound in different rooms. A small office sounds different from a gym, right?`,
+
+  5: `This article compared different software programs that measure voice — like Praat, MDVP, and others.
+
+Here's my first question: What was the main issue the researchers wanted to explore?
+
+Hint: If different programs give different numbers for the same voice, that's a problem. Look for their research question.`,
+
+  6: `This article looked at how people understand speech when there's background noise — and how different types of noise affect this differently.
+
+Here's my first question: What were the researchers trying to understand?
+
+Hint: There's a difference between noise that's just sound (like static) and noise that's other people talking. The study explored this difference.`,
+
+  7: `This article studied how context and expectations help us understand speech when it's hard to hear.
+
+Here's my first question: What question were the researchers trying to answer?
+
+Hint: Think about how knowing the topic of a conversation might help you understand words you couldn't hear clearly.`,
+
+  8: `This article challenged some of what we thought we knew about categorical perception — the idea that we hear speech sounds as distinct categories.
+
+Here's my first question: What were the researchers questioning or investigating?
+
+Hint: Traditional thinking says we hear "ba" or "pa" but nothing in between. This study looked at whether that's really true.`,
+
+  9: `This article was a meta-analysis looking at which acoustic measurements best predict how people perceive voice quality.
+
+Here's my first question: What were the researchers trying to figure out across all these studies?
+
+Hint: They combined results from many studies to see which measurements are most useful for understanding voice quality.`,
+
+  10: `This article examined the validity of the Acoustic Voice Quality Index (AVQI) — a composite measure of voice quality.
+
+Here's my first question: What were the researchers investigating about AVQI?
+
+Hint: They wanted to know how well this index actually measures what it's supposed to measure.`,
+
+  11: `This article looked at what acoustic studies can tell us about vowels in children's speech and in speech disorders.
+
+Here's my first question: What main topic were the researchers reviewing?
+
+Hint: Vowels are different from consonants, and they develop differently. The article looks at what acoustic research tells us.`,
+
+  12: `This article studied whether hearing a language as a child — even without speaking it — affects how you produce sounds as an adult.
+
+Here's my first question: What were the researchers investigating?
+
+Hint: They looked at people who heard a language growing up but didn't actively learn it. Can that passive exposure still help later?`,
+
+  13: `This article examined what predicts how well someone can understand speech in noisy environments.
+
+Here's my first question: What were the researchers trying to understand?
+
+Hint: Some people are better at understanding speech in noise than others. The study looked at what might explain these differences.`,
+
+  14: `This article studied how nasality in speech affects a specific voice measurement called CPP (Cepstral Peak Prominence).
+
+Here's my first question: What problem were the researchers investigating?
+
+Hint: If nasality changes CPP measurements, that could affect how we interpret those measurements clinically.`,
+
+  15: `This article discussed best practices for conducting high-quality acoustic analysis in clinical and research settings.
+
+Here's my first question: What main issue or question does the article address?
+
+Hint: Think about all the things that can go wrong with acoustic measurements. What should clinicians be careful about?`,
+};
+
+// Follow-up question templates
+const FOLLOW_UP_TEMPLATES = {
+  2: `Good. So they wanted to know about [TOPIC].
+
+Now, what did they actually find? Did most SLPs use research regularly, or not? What did the results show?`,
+
+  3: `You mentioned [TOPIC].
+
+Can you give me a specific number or percentage from the article? For example, "X% of clinicians said..." or "The study found that X out of Y..."
+
+This shows you engaged with the actual data.`,
+
+  4: `Nice. Was there anything else that stood out? Another finding, or something that surprised you?
+
+If nothing specific comes to mind, just tell me what you remember — even small details count.`,
+
+  5: `Now let's think critically. Every study has limitations. Here are some common ones:
+- Small sample size
+- Only surveyed one type of clinician
+- People might not answer surveys honestly
+- The study is old
+- The conditions weren't realistic
+
+Did you notice anything like that? Or was there something that confused you about the study?`,
+
+  6: `Last question. Imagine you're an SLP working in a school or clinic. Based on what this article found, is there anything you might do differently? Or anything you'd want to be aware of?
+
+Even a simple answer works, like: "I'd want to make sure I actually look up research instead of just guessing" or "This makes me think I should ask where recommendations come from."`,
+};
+
+// Brief encouragements after each question
+const ENCOURAGEMENTS = [
+  "", // Q1 - no encouragement needed, just the question
+  "Good. Keep going.",
+  "You're halfway there.",
+  "Nice thinking.",
+  "Almost done.",
+  "Last question.",
+];
 
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
@@ -29,7 +158,25 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { message, conversationHistory = [], weekNumber = 1, weekTopic = "Evidence vs. Opinion" } = body;
+    const {
+      message,
+      conversationHistory = [],
+      weekNumber = 2,
+      questionNumber = 1,
+      studentName = "Student"
+    } = body;
+
+    // Handle __START__ message - return first question
+    if (message === "__START__") {
+      const opener = WEEK_OPENERS[weekNumber] || WEEK_OPENERS[2];
+      return NextResponse.json({
+        response: opener,
+        questionComplete: false,
+        conversationComplete: false,
+        weekNumber,
+        questionNumber: 1,
+      });
+    }
 
     // Input validation
     if (!message || typeof message !== 'string') {
@@ -53,20 +200,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!Array.isArray(conversationHistory)) {
-      return NextResponse.json({
-        error: 'Conversation history must be an array',
-        errorCode: 'INVALID_HISTORY'
-      }, { status: 400 });
-    }
-
-    if (conversationHistory.length > MAX_HISTORY_LENGTH) {
-      return NextResponse.json({
-        error: 'Conversation is too long. Please start a new conversation.',
-        errorCode: 'HISTORY_TOO_LONG'
-      }, { status: 400 });
-    }
-
     // Validate week number
     const parsedWeekNumber = typeof weekNumber === 'number' ? weekNumber : parseInt(weekNumber, 10);
     if (isNaN(parsedWeekNumber) || parsedWeekNumber < 1 || parsedWeekNumber > MAX_WEEK_NUMBER) {
@@ -76,363 +209,135 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Log request details for debugging
-    console.log(`[${requestId}] Week: ${parsedWeekNumber}, History length: ${conversationHistory.length}, Message length: ${message.length}`);
-
     // SB 243 Compliance: Check for crisis language BEFORE sending to Claude
     const crisisCheck = detectCrisis(message);
 
     if (crisisCheck.detected) {
-      // Log incident for compliance (anonymized - no PII)
       try {
         await logCrisisIncident(crisisCheck.type);
       } catch (logError) {
         console.error('Failed to log crisis incident:', logError);
-        // Don't block crisis response if logging fails
       }
 
-      // Return crisis response immediately without calling Claude
       return NextResponse.json({
         response: crisisCheck.type === 'others' ? HARM_RESPONSE : CRISIS_RESPONSE,
         isCrisisIntervention: true,
         weekNumber: parsedWeekNumber,
-        weekTopic
+        questionNumber,
+        questionComplete: false,
+        conversationComplete: false,
       });
     }
 
-    const systemPrompt = `You are the Critical Reasoning Mirror for SLHS 303: Speech and Hearing Science at CSU East Bay.
-
-YOUR ROLE
-You are a clinical colleague who reasons WITH students, not FOR them. You reflect their thinking back for examination, challenge unsupported claims, and help them connect science to practice.
-
-COURSE CONTEXT
-- 15 weeks, 4 Acts plus Foundations and Finale
-- Central Question: "What has to be true for linguistic communication to be worth the energy?"
-- First Principle: "Don't trust experts—including me"
-- The student is currently in Week ${parsedWeekNumber}. Use the week-specific content to guide the conversation.
-
-STUDENT POPULATION
-These students need scaffolding, not sink-or-swim:
-- Many are first-generation college students
-- Many work 25+ hours/week and commute 1-2 hours
-- Undergrads (Section 1): juniors who have taken Intro to ComDis and Anatomy, but NO disorders classes and NO clinical experience
-- Grad students (Section 2, CCX): career changers from other fields—do NOT assume prior speech science knowledge
-- Most are transfer students from community college
-- Reading research articles may be new to them
-
-KEY RULE: ONE QUESTION AT A TIME
-Never ask multiple questions in a single response. No embedded questions. No machine-gun fire.
-
-Bad: "What do you think about this finding? And how might it apply clinically? Also, did you notice the sample size issue?"
-
-Good: "What do you think the main finding was?"
-[Wait for response]
-Then: "What makes you say that?"
-[Wait for response]
-Then: "Let me give you a scenario to think about..."
-
-One question. Wait. Respond to what they said. Then the next question.
-
-ANALOGY-BASED SCAFFOLDING (CRITICAL)
-Connecting new concepts to existing knowledge is essential. When a student struggles with a concept:
-
-1. ASK what they already know that might relate:
-   "Before we dive deeper—is there anything from your own experience that this reminds you of? Could be a hobby, your job, something you've noticed..."
-
-2. BUILD the analogy together (don't hand them a pre-made comparison):
-   "Interesting—tell me more about how [their example] works. What are the parts?"
-
-3. Have them EXTEND the analogy:
-   "So if [X] is like [their example], what would [Y] be in this comparison?"
+    // Calculate which question we're on based on conversation length
+    const userMessageCount = conversationHistory.filter((m: { role: string }) => m.role === 'user').length;
+    const currentQ = userMessageCount + 1; // Adding 1 because current message isn't in history yet
+
+    // Build system prompt
+    const systemPrompt = `You are the Critical Reasoning Mirror — a supportive tutor helping undergraduate students think through a research article.
+
+CRITICAL CONTEXT ABOUT YOUR STUDENTS:
+- These students have never done critical thinking exercises before
+- Many are first-generation college students working 25+ hours a week
+- Zero out of 37 knew who Socrates was
+- One student asked "What do we say?" — they literally don't know how to start
+- They are scared and think they're going to fail
+- They need someone in their corner
+- Science is about EFFORT, not perfection
+
+YOU ARE THE SPARK. THEIR BRAIN IS THE TINDER.
+
+You light the fire. You do ALL the heavy lifting. They just respond to your prompts.
+
+YOUR APPROACH:
+
+1. BE WARM AND ENCOURAGING
+   - "Good start!"
+   - "That's a solid observation."
+   - "You're on the right track."
+   - "Nice — you remembered a specific detail."
+
+2. DRAW OUT MORE WHEN ANSWERS ARE THIN
+   - "Can you say a little more about that?"
+   - "What made you think that?"
+   - "Is there anything else you noticed?"
+
+3. NEVER MAKE THEM FEEL STUPID
+   - If wrong: "Interesting — what in the article made you think that?"
+   - If stuck: "That's okay. Take a guess — there's no wrong answer here."
+   - If minimal: "Good start. Can you add one more detail?"
+
+4. KEEP IT SHORT
+   - 2-4 sentences max per response
+   - Don't write paragraphs
+   - Get to the point
+
+CURRENT STATE:
+- Week: ${parsedWeekNumber}
+- Question: ${currentQ} of 6
+- Student: ${studentName}
+
+YOUR TASK NOW:
+The student just answered question ${currentQ}.
+
+${currentQ < 6 ? `
+Acknowledge their answer briefly and positively, then ask the NEXT question.
+
+Question ${currentQ + 1} should focus on:
+${currentQ === 1 ? "What did the researchers actually FIND? What were the results?" : ""}
+${currentQ === 2 ? "Can they give a SPECIFIC number, percentage, or finding from the article?" : ""}
+${currentQ === 3 ? "Was there anything else that stood out, surprised them, or that they remember?" : ""}
+${currentQ === 4 ? "What are the LIMITATIONS or things that confused them about the study?" : ""}
+${currentQ === 5 ? "How might this research matter for CLINICIANS in practice?" : ""}
+
+Add a brief encouragement: "${ENCOURAGEMENTS[currentQ] || ''}"
+
+Remember: Provide context and hints. Make it easy for them to answer.
+` : `
+This is their LAST answer. Acknowledge it warmly and wrap up.
+
+Say something like:
+"Great job! You've just thought through all the key parts of this article — what it was about, what they found, what the limitations might be, and why it matters.
+
+Now you're ready to write your reflection. The template will make it easy — just summarize what you told me."
+
+DO NOT ask another question. The conversation is complete.
+`}
+
+NEVER:
+- Ask vague, open-ended questions without hints
+- Give them the answer directly
+- Make them feel stupid
+- Use jargon or complex language
+- Write long paragraphs
+- Let them off the hook with "I don't know" (redirect warmly)
+
+ALWAYS:
+- Provide context before asking
+- Give hints about where to find answers
+- Validate their responses before moving on
+- Keep the energy positive and encouraging`;
+
+    // Build messages array for Claude
+    const claudeMessages = conversationHistory.map((msg: { role: string; content: string }) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    // Add current user message
+    claudeMessages.push({
+      role: 'user',
+      content: message,
+    });
+
+    console.log(`[${requestId}] Calling Claude API, question ${currentQ} of 6`);
 
-4. Have them STRESS-TEST it:
-   "Where does this analogy break down? What doesn't map perfectly?"
-
-Example analogies (use as backup if student can't generate):
-- Source-filter theory → guitar (strings = source, body = filter)
-- Categorical perception → radio dial (continuous signal, discrete stations)
-- Masking → loud party vs. white noise
-- CPP as composite → recipe where you can't isolate ingredients
-- Reverberation confounds → gym echo distorting speech
-
-EFFORT IS REWARDED—MAKE THIS EXPLICIT
-Tell students directly: "When you engage with these analogies, work through them, and push to find where they break down—that's what earns full critical thinking points. Giving up forfeits those points."
-
-When a student struggles but keeps engaging, name it: "This is exactly what good scientific thinking looks like—staying with the difficulty instead of retreating."
-
-ZONE OF PROXIMAL DEVELOPMENT LIMITS
-Scaffolding has limits. Know when to provide more support and when to move on:
-
-| Student Signal | Your Response |
-|----------------|---------------|
-| Engages, makes progress (even slow) | Keep going—they're in the zone |
-| 2-3 genuine attempts, still stuck on same point | Provide more scaffolding (simpler analogy, smaller steps) |
-| Still stuck after additional scaffolding | Give them the connection, then ask them to APPLY it |
-| Disengages: "I don't know" 3+ times, one-word answers | Name what happened, offer a path forward, move on |
-
-Practical limits:
-- 3 genuine attempts at same concept before providing direct help
-- 2 rounds of scaffolding before giving the answer
-- No more than 5-6 exchanges on a single concept
-- Then move forward
-
-What counts as a genuine attempt:
-- Trying an answer (even if wrong)
-- Asking a clarifying question
-- Proposing a partial connection
-
-What doesn't count:
-- "I don't know"
-- "Can you just tell me?"
-- Single-word responses
-- Restating the question back
-
-CLINICAL CONNECTIONS: YOU PROVIDE THE SCENARIO
-Students have NO clinical experience. They cannot generate clinical scenarios.
-
-DO NOT ask: "What's the clinical implication?"
-DO ask: "Let me give you a situation. Imagine you're comparing a patient's voice recordings before and after therapy. In the first recording, they spoke quietly because they were nervous. In the second, they spoke at normal volume. The shimmer value dropped. Based on what we just discussed about SPL—is this actually improvement?"
-
-You provide the clinical context. They apply the reasoning.
-
-WHAT "MEETS EXPECTATIONS" LOOKS LIKE
-Each week has specific targets (see week content files). Generally:
-1. Accurate understanding of the article's core concept
-2. Engagement with the key finding (can explain it, not just state it)
-3. Correct application of the concept to a clinical scenario YOU provide
-4. At least one analogy built/extended OR one study limitation identified
-
-WHAT TO REDIRECT
-- "Summarize this for me" → "What's your understanding so far? Start with whatever piece you feel clearest on."
-- Single-turn shallow questions → Go deeper on what they said
-- Accepting claims without checking → "What in the article supports that?"
-- No clinical connection → Provide a scenario and ask them to apply
-
-STUDENT SUPPORT FRAMING
-If a student expresses anxiety or feeling overwhelmed, acknowledge briefly:
-- "This course is challenging in how it asks you to think, but forgiving in how you learn."
-- "Early struggles are expected, not failures."
-- "Not Yet means revision, not rejection."
-
-Then return to the work. Don't dwell on reassurance.
-
-STAYING ON TOPIC
-Your purpose is to facilitate thoughtful conversations about the weekly article and course content. If a student goes off-topic, tries to use the Mirror for unrelated purposes, or attempts to derail the conversation:
-
-- Acknowledge briefly, then redirect: "I hear you—let's bring it back to the article. Where were we?"
-- Don't lecture or scold
-- Don't engage with inappropriate content
-- Simply steer back to the work
-
-If a student uses aggressive language or seems hostile:
-- Recognize this often masks frustration or insecurity about the material
-- Don't take the bait, don't patronize, don't escalate
-- Respond with calm dignity: "Sounds like this might be frustrating. Let's slow down and find where you're getting stuck."
-- Return to the content
-
-The goal is thoughtful conversation demonstrating effort and understanding of the resources provided—the article, the NotebookLM briefing, the Gamma module, and class discussion. The Mirror is not a general-purpose chatbot. It exists to support learning in Weeks 2-15 of this specific course.
-
-COURSE GRADING OVERVIEW
-
-This course is graded on 160 total points:
-- Weekly Conversations (Weeks 2-15): 112 points (70%) - 8 points each × 14 weeks
-- Midterm Exam: 24 points (15%) - comprehensive assessment of Weeks 1-7
-- Final Exam: 24 points (15%) - comprehensive assessment of Weeks 8-15
-
-The weekly conversations are assessed using the rubric below. Students can see this rubric via the "Grading" button.
-
-GRADING RUBRIC (8 points total per weekly conversation)
-
-Track these four areas during conversation:
-
-1. ENGAGEMENT (0-2 points): Does student show they read and tried to understand the article?
-   - 0: Didn't read the article or major misunderstanding
-   - 1: Read it but only surface-level understanding
-   - 2: Shows honest effort to understand what researchers studied and found
-
-2. EVIDENCE (0-2 points): Does student reference specific findings, numbers, or details?
-   - 0: No reference to the article, or making things up
-   - 1: Vague references ("the study found...")
-   - 2: Points to specific findings, numbers, or details from the article
-
-3. CRITICAL QUESTIONS (0-2 points): Does student identify limitations, confusions, or things worth questioning?
-   - 0: No questions, accepts everything at face value
-   - 1: Asks questions but doesn't explain why they matter
-   - 2: Identifies something confusing, limited, or worth questioning — and explains why
-
-4. CONNECTIONS (0-2 points): Does student connect research to real-world or clinical application?
-   - 0: No connection to real-world application
-   - 1: Generic connection ("this is useful for SLPs")
-   - 2: Specific, thoughtful connection to how this might matter in practice
-
-Guide students toward all four areas naturally through conversation. If they're about to submit without addressing an area, prompt them:
-- Missing engagement: "Before we wrap up — what was the main thing the researchers were trying to figure out?"
-- Missing evidence: "Can you point to a specific finding or number from the article?"
-- Missing questions: "What's one thing about this study that made you wonder or seemed unclear?"
-- Missing connections: "How might this matter for someone actually working with patients?"
-
-GRADING PHILOSOPHY FOR UNDERGRADUATES
-
-These students are BEGINNERS. Many have no background in acoustics. Some work full-time. Help them SUCCEED.
-
-WHAT COUNTS AS GOOD:
-- Attempting to explain, even if imperfect
-- Asking clarifying questions
-- Admitting confusion honestly
-- Making any reasonable real-world connection
-- Showing they read it, even with misunderstandings
-
-WHAT DOES NOT COUNT:
-- One-word answers
-- Clearly not reading the article
-- Refusing to engage with follow-ups
-- Pasting AI-generated text
-
-When students struggle, guide warmly:
-- "Interesting — tell me more about how you're thinking about that."
-- "What part of the article made you think that?"
-- "That's a common confusion — let's work through it."
-
-ANTI-GAMING DETECTION
-
-RED FLAGS (likely AI-generated or copied):
-- Message over 300 characters in first 2-3 exchanges
-- Perfect grammar with no hedging or uncertainty
-- Academic tone inconsistent with conversation
-- Markdown formatting (headers, bullets, bold)
-- Sophisticated terminology with no prior confusion
-- Doesn't directly answer YOUR specific question
-- Sudden sophistication jump from previous responses
-
-SIGNS OF GENUINE THINKING:
-- Incomplete sentences, hedging ("I think...", "maybe...")
-- Questions back to you
-- Admissions of confusion
-- Typos, informal language
-- Building on previous exchanges
-- Getting things wrong and working through it
-
-WHEN YOU SUSPECT GAMING:
-
-Do NOT praise the content. Respond:
-
-"Hold on — this reads more like something prepared elsewhere than your own thinking. Even rough, incomplete thoughts are more valuable here.
-
-In your own words, just a sentence or two — [repeat specific question]"
-
-If pattern continues after two redirects:
-
-"I'm still seeing responses that don't seem like your own thinking. Your submission will be flagged for instructor review. You can continue, but I encourage you to engage in your own words."
-
-COMPREHENSION CHECKS
-
-After technical terminology or potentially AI-generated responses, require demonstration:
-- "Can you give me a simple example of that?"
-- "What part are you least sure about?"
-- "Explain that like you're telling a friend who's never heard of it."
-
-If student can't engage with follow-up, original response likely wasn't their thinking.
-
-Be warm, not accusatory. Frame as helping them learn.
-
-IF STUDENT TRIES TO END EARLY:
-"Before we wrap up, I notice we haven't explored [missing area]. Would you like to discuss that? It's one of the criteria for full points."
-
-WHEN ALL AREAS COVERED (after 6+ exchanges):
-"You've done excellent work covering all the key areas. When you're ready, you can click 'Complete & Submit' to finalize your conversation."
-
-DO NOT:
-- Give away answers—guide them to discover
-- Accept one-word responses as "substantive"
-- Skip the reflection prompt at the end
-- Praise responses that seem AI-generated
-
-If a student hasn't engaged with the materials:
-- Don't pretend the conversation can proceed without them
-- "It sounds like you might not have had a chance to go through the article yet. That's okay—but the conversation works best when you come with some initial understanding to build on. What resources have you used so far this week?"`;
-
-    // Week 1 Foundations content - no article, focus on vocabulary and frameworks
-    const week1Content = `
-
-WEEK 1: FOUNDATIONS & ORIENTATION
-This is the foundation week. No article, no graded assignment. Students build vocabulary and conceptual framework for everything that follows.
-
-THE CENTRAL QUESTION
-What has to be true for linguistic communication to be worth the energy?
-
-This question frames the entire course. Linguistic communication is expensive—it requires mapping abstract thoughts onto arbitrary symbols, sequencing them syntactically, executing complex motor plans, and hoping the listener decodes correctly. Direct action is often cheaper. Every week answers part of this question.
-
-SOURCE-FILTER THEORY (The unifying framework)
-- Source: Vocal folds vibrate, producing F0 (fundamental frequency) + harmonics
-- Filter: Vocal tract shapes the sound through resonance, creating formants
-- "Language is the song, speech is the instrument"
-- The source generates raw material; the filter shapes it into meaning
-
-KEY ACOUSTIC CONCEPTS TO EXPLORE
-| Concept | Definition |
-|---------|------------|
-| Frequency | Cycles per second (Hz); correlates with pitch |
-| Amplitude | Magnitude of pressure change; correlates with loudness |
-| Periodic | Sound with repeating pattern |
-| Aperiodic | Sound without repeating pattern |
-| F0 | Fundamental frequency; rate of vocal fold vibration |
-| Harmonics | Whole-number multiples of F0 |
-| Formants | Resonant frequencies of vocal tract |
-| F1 | First formant; inversely correlates with tongue height |
-| F2 | Second formant; correlates with tongue advancement |
-| Spectrogram | Visual representation of frequency over time |
-
-SHANNON-WEAVER COMMUNICATION MODEL
-A diagnostic framework for understanding communication breakdown:
-- Information source → Transmitter → Channel → Receiver → Destination
-- Noise can enter at any point
-- Every communication disorder is a breakdown somewhere in this chain
-
-FOR WEEK 1 CONVERSATIONS:
-- Help students explore these foundational concepts
-- Use analogies to connect to their existing knowledge
-- No article to discuss—focus on building vocabulary and frameworks
-- Ask: "What does sound actually IS?" "How does it become speech?"
-- Connect everything back to the central question
-
-WEEK 1 PARTIAL ANSWER TO THE CENTRAL QUESTION:
-We must understand what sound IS and how it becomes speech. The vocal folds create a source, the vocal tract creates a filter, and together they produce the acoustic signal that carries meaning. Before we can study what goes wrong, we must understand what goes right.`;
-
-    // Build full system prompt with appropriate content
-    // Research Methods Primer is included for all weeks since statistical questions
-    // can arise when discussing the Greenwell & Walsh study or any research article
-    let fullSystemPrompt = systemPrompt + RESEARCH_METHODS_PRIMER;
-
-    // Add Week 1 Foundations content if applicable
-    if (parsedWeekNumber === 1) {
-      fullSystemPrompt += week1Content;
-    }
-
-    const messages = [
-      ...conversationHistory.map((msg: { role: string; content: string }) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
-      { role: 'user', content: message },
-    ];
-
-    // Check conversation length and warn if getting long
-    const conversationTurns = Math.floor(conversationHistory.length / 2);
-    if (conversationTurns >= MAX_CONVERSATION_TURNS) {
-      console.warn(`[${requestId}] Long conversation detected: ${conversationTurns} turns`);
-    }
-
-    // Create abort controller for timeout
+    // Call Claude API
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.error(`[${requestId}] Request timed out after ${API_TIMEOUT_MS}ms`);
-      controller.abort();
-    }, API_TIMEOUT_MS);
-
-    console.log(`[${requestId}] Sending request to Anthropic API...`);
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -441,74 +346,49 @@ We must understand what sound IS and how it becomes speech. The vocal folds crea
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          system: fullSystemPrompt,
-          messages: messages,
+          max_tokens: 500, // Keep responses short
+          system: systemPrompt,
+          messages: claudeMessages,
         }),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[${requestId}] Anthropic API error (${response.status}):`, errorText);
-
-        // Return user-friendly error messages based on status
-        if (response.status === 429) {
-          return NextResponse.json({
-            error: 'Too many requests. Please wait a moment and try again.',
-            errorCode: 'RATE_LIMITED'
-          }, { status: 429 });
-        } else if (response.status === 401) {
-          return NextResponse.json({
-            error: 'Service configuration error. Please contact your instructor.',
-            errorCode: 'AUTH_ERROR'
-          }, { status: 500 });
-        } else if (response.status >= 500) {
-          return NextResponse.json({
-            error: 'The AI service is temporarily unavailable. Please try again in a few minutes.',
-            errorCode: 'SERVICE_UNAVAILABLE'
-          }, { status: 503 });
-        }
-
+      if (!claudeResponse.ok) {
+        const errorText = await claudeResponse.text();
+        console.error(`[${requestId}] Claude API error:`, claudeResponse.status, errorText);
         return NextResponse.json({
-          error: 'Something went wrong. Please try again.',
+          error: 'I had trouble thinking. Please try again.',
           errorCode: 'API_ERROR'
         }, { status: 500 });
       }
 
-      const data = await response.json();
+      const claudeData = await claudeResponse.json();
+      const responseText = claudeData.content?.[0]?.text || '';
 
-      // Validate response structure
-      if (!data.content || !Array.isArray(data.content) || !data.content[0]?.text) {
-        console.error(`[${requestId}] Invalid response structure:`, JSON.stringify(data).substring(0, 200));
-        return NextResponse.json({
-          error: 'Received an invalid response. Please try again.',
-          errorCode: 'INVALID_RESPONSE'
-        }, { status: 500 });
-      }
-
-      console.log(`[${requestId}] Successfully received response (${data.content[0].text.length} chars)`);
+      console.log(`[${requestId}] Claude response received, length: ${responseText.length}`);
 
       return NextResponse.json({
-        response: data.content[0].text,
+        response: responseText,
+        questionComplete: true,
+        conversationComplete: currentQ >= 6,
         weekNumber: parsedWeekNumber,
-        weekTopic
+        questionNumber: currentQ,
       });
+
     } catch (fetchError) {
       clearTimeout(timeoutId);
-
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.error(`[${requestId}] Request aborted due to timeout`);
+        console.error(`[${requestId}] Request timed out`);
         return NextResponse.json({
-          error: 'The request took too long. Please try sending a shorter message or starting a new conversation.',
+          error: 'The request took too long. Please try again.',
           errorCode: 'TIMEOUT'
         }, { status: 504 });
       }
-
-      throw fetchError; // Re-throw for outer catch block
+      throw fetchError;
     }
+
   } catch (error) {
     console.error(`[${requestId}] Unexpected error:`, error);
     return NextResponse.json({
@@ -519,9 +399,8 @@ We must understand what sound IS and how it becomes speech. The vocal folds crea
 }
 
 export async function GET() {
-  return NextResponse.json({ 
-    status: 'SLHS 303 Critical Reasoning Mirror API is running',
-    model: 'claude-sonnet-4-20250514',
-    weeks: 15
+  return NextResponse.json({
+    status: 'SLHS 303 Chat API is running',
+    version: '2.0 - Spoon-fed 6-question format'
   });
 }

@@ -83,10 +83,9 @@ interface StudentWithStats extends Student {
 
 interface Grade {
   article_engagement: number
-  evidence_reasoning: number
-  critical_thinking: number
+  using_evidence: number
+  critical_questioning: number
   clinical_connection: number
-  reflection_pass: boolean
   grader_notes: string | null
 }
 
@@ -104,23 +103,23 @@ interface ProgressRow {
 
 type TabType = 'overview' | 'roster' | 'submissions' | 'export'
 
-// Rubric descriptions
+// Rubric descriptions - matches Canvas exactly
 const RUBRIC = {
   article_engagement: {
     name: 'Article Engagement',
     description: 'Accurate understanding of research question, methods, findings',
   },
-  evidence_reasoning: {
-    name: 'Evidence-Based Reasoning',
-    description: 'Uses data to support claims, not vibes',
+  using_evidence: {
+    name: 'Using Evidence',
+    description: 'References specific findings, numbers, or details from the article',
   },
-  critical_thinking: {
-    name: 'Critical Thinking',
-    description: 'Identifies limitations, alternatives, confounds',
+  critical_questioning: {
+    name: 'Critical Questioning',
+    description: 'Identifies limitations, confusions, or things worth questioning',
   },
   clinical_connection: {
     name: 'Clinical Connection',
-    description: 'Links to real practice, asks "so what?"',
+    description: 'Specific, thoughtful connection to clinical practice',
   },
 }
 
@@ -154,10 +153,9 @@ export default function InstructorPortal() {
   const [isSaving, setIsSaving] = useState(false)
   const [grade, setGrade] = useState<Grade>({
     article_engagement: 0,
-    evidence_reasoning: 0,
-    critical_thinking: 0,
+    using_evidence: 0,
+    critical_questioning: 0,
     clinical_connection: 0,
-    reflection_pass: false,
     grader_notes: null,
   })
 
@@ -171,6 +169,23 @@ export default function InstructorPortal() {
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const pdfInputRef = useRef<HTMLInputElement>(null)
+
+  // Roster bulk selection
+  const [selectedRosterStudents, setSelectedRosterStudents] = useState<Set<string>>(new Set())
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<StudentWithStats | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Submissions bulk selection & filtering
+  const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ungraded' | 'graded' | 'flagged'>('all')
+
+  // Grading panel (slide-out)
+  const [gradingPanelOpen, setGradingPanelOpen] = useState(false)
+
+  // Export enhancements
+  const [exportWeek, setExportWeek] = useState<string>('all')
+  const [exportGradedOnly, setExportGradedOnly] = useState(true)
 
   // Check for stored auth
   const storedPassword = typeof window !== "undefined" ? sessionStorage.getItem("instructor_password_v2") : null
@@ -254,21 +269,20 @@ export default function InstructorPortal() {
     if (res.ok) {
       const data = await res.json()
       if (data.grade) {
+        // Map from database field names (evidence_reasoning, critical_thinking) to UI names (using_evidence, critical_questioning)
         setGrade({
           article_engagement: data.grade.article_engagement,
-          evidence_reasoning: data.grade.evidence_reasoning,
-          critical_thinking: data.grade.critical_thinking,
+          using_evidence: data.grade.evidence_reasoning ?? data.grade.using_evidence ?? 0,
+          critical_questioning: data.grade.critical_thinking ?? data.grade.critical_questioning ?? 0,
           clinical_connection: data.grade.clinical_connection,
-          reflection_pass: data.grade.reflection_pass,
           grader_notes: data.grade.grader_notes,
         })
       } else {
         setGrade({
           article_engagement: 0,
-          evidence_reasoning: 0,
-          critical_thinking: 0,
+          using_evidence: 0,
+          critical_questioning: 0,
           clinical_connection: 0,
-          reflection_pass: false,
           grader_notes: null,
         })
       }
@@ -331,10 +345,9 @@ export default function InstructorPortal() {
     setSelectedSubmission(null)
     setGrade({
       article_engagement: 0,
-      evidence_reasoning: 0,
-      critical_thinking: 0,
+      using_evidence: 0,
+      critical_questioning: 0,
       clinical_connection: 0,
-      reflection_pass: false,
       grader_notes: null,
     })
   }
@@ -343,6 +356,7 @@ export default function InstructorPortal() {
     if (!selectedSubmission) return
 
     setIsSaving(true)
+    // Map UI field names to database field names
     const res = await fetch("/api/instructor/grades", {
       method: "POST",
       headers: {
@@ -351,7 +365,12 @@ export default function InstructorPortal() {
       },
       body: JSON.stringify({
         submission_id: selectedSubmission.submission_id,
-        ...grade,
+        article_engagement: grade.article_engagement,
+        evidence_reasoning: grade.using_evidence,
+        critical_thinking: grade.critical_questioning,
+        clinical_connection: grade.clinical_connection,
+        reflection_pass: true, // Always pass reflection (it's required to submit, not graded separately)
+        grader_notes: grade.grader_notes,
         graded_by: "Instructor",
       }),
     })
@@ -670,6 +689,188 @@ export default function InstructorPortal() {
     }
   }
 
+  // Roster bulk selection handlers
+  const toggleRosterStudent = (id: string) => {
+    setSelectedRosterStudents(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) newSet.delete(id)
+      else newSet.add(id)
+      return newSet
+    })
+  }
+
+  const toggleAllRosterStudents = () => {
+    if (selectedRosterStudents.size === students.length) {
+      setSelectedRosterStudents(new Set())
+    } else {
+      setSelectedRosterStudents(new Set(students.map(s => s.id)))
+    }
+  }
+
+  const deleteStudent = async (student: StudentWithStats) => {
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/instructor/roster?id=${student.id}`, {
+        method: 'DELETE',
+        headers: { 'x-instructor-password': password },
+      })
+      if (res.ok) {
+        await fetchStudents()
+        await fetchProgress()
+        setStudentToDelete(null)
+        setDeleteConfirmOpen(false)
+      } else {
+        const data = await res.json()
+        alert(`Failed to delete: ${data.error}`)
+      }
+    } catch {
+      alert('Failed to delete student')
+    }
+    setIsDeleting(false)
+  }
+
+  const deleteSelectedStudents = async () => {
+    setIsDeleting(true)
+    const toDelete = Array.from(selectedRosterStudents)
+    for (const id of toDelete) {
+      await fetch(`/api/instructor/roster?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'x-instructor-password': password },
+      })
+    }
+    await fetchStudents()
+    await fetchProgress()
+    setSelectedRosterStudents(new Set())
+    setDeleteConfirmOpen(false)
+    setIsDeleting(false)
+  }
+
+  // Submission bulk selection handlers
+  const toggleSubmission = (id: string) => {
+    setSelectedSubmissions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) newSet.delete(id)
+      else newSet.add(id)
+      return newSet
+    })
+  }
+
+  const toggleAllSubmissions = () => {
+    if (selectedSubmissions.size === filteredSubmissions.length) {
+      setSelectedSubmissions(new Set())
+    } else {
+      setSelectedSubmissions(new Set(filteredSubmissions.map(s => s.submission_id)))
+    }
+  }
+
+  // Quick approve with reasonable scores (6/8 total)
+  const quickApprove = async (submission: SubmissionDetail) => {
+    // Quick approve with reasonable scores (6/8 total: 2+1+1+2)
+    const res = await fetch("/api/instructor/grades", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-instructor-password": password,
+      },
+      body: JSON.stringify({
+        submission_id: submission.submission_id,
+        article_engagement: 2,
+        evidence_reasoning: 1,
+        critical_thinking: 1,
+        clinical_connection: 2,
+        reflection_pass: true, // Always true (reflection is required to submit, not graded separately)
+        grader_notes: "Quick approved (6/8)",
+        graded_by: "Instructor",
+      }),
+    })
+
+    if (res.ok) {
+      await fetchSubmissions()
+      await fetchStats()
+      await fetchProgress()
+    }
+  }
+
+  // Batch approve all selected unflagged submissions
+  const batchApprove = async () => {
+    const toApprove = filteredSubmissions.filter(
+      s => selectedSubmissions.has(s.submission_id) && !s.flagged && !s.reviewed
+    )
+
+    for (const submission of toApprove) {
+      await quickApprove(submission)
+    }
+
+    setSelectedSubmissions(new Set())
+  }
+
+  // Open grading panel (slide-out)
+  const openGradingPanel = async (submission: SubmissionDetail) => {
+    setSelectedSubmission(submission)
+    await fetchGrade(submission.submission_id)
+    setGradingPanelOpen(true)
+  }
+
+  // Close grading panel
+  const closeGradingPanel = () => {
+    setGradingPanelOpen(false)
+    setSelectedSubmission(null)
+    setGrade({
+      article_engagement: 0,
+      using_evidence: 0,
+      critical_questioning: 0,
+      clinical_connection: 0,
+      grader_notes: null,
+    })
+  }
+
+  // Save grade from slide-out panel
+  const saveGradeFromPanel = async (andNext = false) => {
+    if (!selectedSubmission) return
+
+    setIsSaving(true)
+    // Map UI field names to database field names
+    const res = await fetch("/api/instructor/grades", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-instructor-password": password,
+      },
+      body: JSON.stringify({
+        submission_id: selectedSubmission.submission_id,
+        article_engagement: grade.article_engagement,
+        evidence_reasoning: grade.using_evidence,
+        critical_thinking: grade.critical_questioning,
+        clinical_connection: grade.clinical_connection,
+        reflection_pass: true, // Always pass (reflection is required to submit, not graded separately)
+        grader_notes: grade.grader_notes,
+        graded_by: "Instructor",
+      }),
+    })
+
+    if (res.ok) {
+      await fetchSubmissions()
+      await fetchStats()
+      await fetchProgress()
+
+      if (andNext) {
+        // Find next ungraded submission in filtered list
+        const currentIndex = filteredSubmissions.findIndex(
+          s => s.submission_id === selectedSubmission.submission_id
+        )
+        const nextUngraded = filteredSubmissions.slice(currentIndex + 1).find(s => !s.reviewed)
+        if (nextUngraded) {
+          openGradingPanel(nextUngraded)
+        } else {
+          closeGradingPanel()
+        }
+      } else {
+        closeGradingPanel()
+      }
+    }
+    setIsSaving(false)
+  }
+
   // Export handler
   const handleExport = async (format: 'canvas' | 'detailed') => {
     const params = new URLSearchParams()
@@ -704,8 +905,35 @@ export default function InstructorPortal() {
     })
   }
 
-  const totalScore = grade.article_engagement + grade.evidence_reasoning +
-    grade.critical_thinking + grade.clinical_connection + (grade.reflection_pass ? 1 : 0)
+  // Total score out of 8 (4 categories × 2 points each, no separate reflection)
+  const totalScore = grade.article_engagement + grade.using_evidence +
+    grade.critical_questioning + grade.clinical_connection
+
+  // Computed values for summary cards
+  const ungradedCount = submissions.filter(s => !s.reviewed).length
+  const flaggedCount = submissions.filter(s => s.flagged).length
+  const gradedThisWeekCount = (() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return submissions.filter(s =>
+      s.reviewed_at && new Date(s.reviewed_at).getTime() >= weekAgo
+    ).length
+  })()
+
+  // Get filtered submissions based on status filter
+  const getFilteredSubmissions = () => {
+    switch (statusFilter) {
+      case 'ungraded':
+        return submissions.filter(s => !s.reviewed)
+      case 'graded':
+        return submissions.filter(s => s.reviewed)
+      case 'flagged':
+        return submissions.filter(s => s.flagged)
+      default:
+        return submissions
+    }
+  }
+
+  const filteredSubmissions = getFilteredSubmissions()
 
   // Login screen (minimal, no hints)
   if (!isAuthenticated) {
@@ -873,7 +1101,7 @@ export default function InstructorPortal() {
               <div className="bg-white rounded-2xl p-5 border border-amber-200/50 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Rubric</h3>
-                  <div className="text-2xl font-bold text-teal-600">{totalScore}/9</div>
+                  <div className="text-2xl font-bold text-teal-600">{totalScore}/8</div>
                 </div>
 
                 <div className="space-y-4">
@@ -901,19 +1129,6 @@ export default function InstructorPortal() {
                     </div>
                   ))}
 
-                  <div className="pt-2 border-t border-gray-200">
-                    <button
-                      onClick={() => setGrade(g => ({ ...g, reflection_pass: !g.reflection_pass }))}
-                      className={`w-full py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                        grade.reflection_pass
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {grade.reflection_pass ? <Check className="h-4 w-4" /> : null}
-                      Reflection {grade.reflection_pass ? "Pass (+1)" : "Fail"}
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -1071,7 +1286,7 @@ export default function InstructorPortal() {
                               {weekData.status === 'graded' && (
                                 <span
                                   className="inline-block w-6 h-6 rounded bg-green-500 text-white text-xs font-medium flex items-center justify-center"
-                                  title={`Score: ${weekData.total_score}/9`}
+                                  title={`Score: ${weekData.total_score}/8`}
                                 >
                                   {weekData.total_score}
                                 </span>
@@ -1233,44 +1448,195 @@ export default function InstructorPortal() {
 
             {/* Student List */}
             <div className="bg-white rounded-xl border border-amber-200/50 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-amber-100">
+              <div className="px-4 py-3 border-b border-amber-100 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Student Roster ({students.length})</h2>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {students.map((student) => (
-                  <div key={student.id} className="px-4 py-3 flex items-center justify-between hover:bg-amber-50/50">
-                    <div>
-                      <div className="font-medium text-gray-900">{student.name}</div>
-                      <div className="text-sm text-gray-500">{student.email}</div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                        Sec {student.section}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {student.submission_count} submissions
-                      </span>
-                      {student.avg_score !== null && (
-                        <span className="text-sm font-medium text-teal-600">
-                          Avg: {student.avg_score}/9
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {students.length === 0 && (
-                  <div className="p-8 text-center text-gray-500">
-                    No students imported yet
-                  </div>
+                {selectedRosterStudents.size > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete Selected ({selectedRosterStudents.size})
+                  </Button>
                 )}
               </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 w-8">
+                        <input
+                          type="checkbox"
+                          checked={students.length > 0 && selectedRosterStudents.size === students.length}
+                          onChange={toggleAllRosterStudents}
+                          className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                        />
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-700">Name</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-700">Email</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-700">Sec</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-700">Submissions</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-700">Avg</th>
+                      <th className="px-3 py-2 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {students.map((student) => (
+                      <tr key={student.id} className="hover:bg-amber-50/50">
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedRosterStudents.has(student.id)}
+                            onChange={() => toggleRosterStudent(student.id)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium text-gray-900">{student.name}</div>
+                        </td>
+                        <td className="px-3 py-2 text-gray-500 truncate max-w-[200px]">{student.email}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                            {student.section}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center text-gray-600">
+                          {student.submission_count}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {student.avg_score !== null ? (
+                            <span className="font-medium text-teal-600">{student.avg_score}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => {
+                              setStudentToDelete(student)
+                              setDeleteConfirmOpen(true)
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {students.length === 0 && (
+                <div className="p-8 text-center text-gray-500">
+                  No students imported yet
+                </div>
+              )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+              {deleteConfirmOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                  onClick={() => !isDeleting && setDeleteConfirmOpen(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {studentToDelete
+                        ? `Remove ${studentToDelete.name} from the roster?`
+                        : `Remove ${selectedRosterStudents.size} students from the roster?`}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <span className="text-amber-600 font-medium">Warning:</span> This will also remove their submission data.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setDeleteConfirmOpen(false)
+                          setStudentToDelete(null)
+                        }}
+                        disabled={isDeleting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (studentToDelete) {
+                            deleteStudent(studentToDelete)
+                          } else {
+                            deleteSelectedStudents()
+                          }
+                        }}
+                        disabled={isDeleting}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        {studentToDelete ? 'Remove Student' : `Remove ${selectedRosterStudents.size} Students`}
+                      </Button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
         {/* Submissions Tab */}
         {activeTab === 'submissions' && (
           <div className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{ungradedCount}</p>
+                    <p className="text-xs text-gray-600">Ungraded</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                    <Flag className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{flaggedCount}</p>
+                    <p className="text-xs text-gray-600">Flagged</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{gradedThisWeekCount}</p>
+                    <p className="text-xs text-gray-600">Graded This Week</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Smart Upload Zone */}
             <div className="bg-white rounded-xl border border-amber-200/50 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-amber-100">
@@ -1569,6 +1935,20 @@ export default function InstructorPortal() {
                   ))}
                 </select>
 
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as 'all' | 'ungraded' | 'graded' | 'flagged')
+                    setSelectedSubmissions(new Set())
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="ungraded">Ungraded</option>
+                  <option value="graded">Graded</option>
+                  <option value="flagged">Flagged</option>
+                </select>
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1594,70 +1974,150 @@ export default function InstructorPortal() {
               </div>
             </div>
 
+            {/* Batch Actions Bar */}
+            {selectedSubmissions.size > 0 && (
+              <div className="bg-teal-50 rounded-xl p-4 border border-teal-200 flex items-center justify-between">
+                <span className="text-sm font-medium text-teal-800">
+                  {selectedSubmissions.size} submission{selectedSubmissions.size > 1 ? 's' : ''} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedSubmissions(new Set())}
+                    className="text-gray-600"
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={batchApprove}
+                    className="bg-teal-600 hover:bg-teal-700 text-white"
+                    disabled={!filteredSubmissions.some(
+                      s => selectedSubmissions.has(s.submission_id) && !s.flagged && !s.reviewed
+                    )}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Approve Selected
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Submissions list */}
             <div className="bg-white rounded-xl border border-amber-200/50 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-amber-100">
-                <h2 className="text-lg font-semibold text-gray-900">Submissions ({submissions.length})</h2>
+              <div className="px-4 py-3 border-b border-amber-100 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Submissions ({filteredSubmissions.length})
+                </h2>
               </div>
 
               {isLoading ? (
                 <div className="p-8 text-center">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto text-teal-500" />
                 </div>
-              ) : submissions.length === 0 ? (
+              ) : filteredSubmissions.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   No submissions found
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {submissions.map((submission) => (
-                    <div
-                      key={submission.submission_id}
-                      className="p-4 hover:bg-amber-50/50 cursor-pointer transition-colors"
-                      onClick={() => openSubmission(submission)}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-medium text-gray-900">{submission.student_name}</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 w-8">
+                          <input
+                            type="checkbox"
+                            checked={filteredSubmissions.length > 0 && selectedSubmissions.size === filteredSubmissions.length}
+                            onChange={toggleAllSubmissions}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                          />
+                        </th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-700">Student</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-700">Week</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-700">Submitted</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-700">Flags</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-700">Status</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredSubmissions.map((submission) => (
+                        <tr key={submission.submission_id} className="hover:bg-amber-50/50">
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedSubmissions.has(submission.submission_id)}
+                              onChange={() => toggleSubmission(submission.submission_id)}
+                              className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-gray-900">{submission.student_name}</div>
+                            <div className="text-xs text-gray-500">{submission.student_email}</div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                              Week {submission.week_number}
+                              W{submission.week_number}
                             </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 text-xs">
+                            {formatDate(submission.submitted_at)}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {submission.flagged ? (
+                              <span
+                                className="text-red-500 cursor-help"
+                                title={`${submission.flag_reason || "Flagged"}${submission.paste_attempts ? ` | Paste: ${submission.paste_attempts}` : ''}${submission.suspected_ai_responses ? ` | AI: ${submission.suspected_ai_responses}` : ''}`}
+                              >
+                                <AlertTriangle className="h-4 w-4 inline" />
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
                             {submission.reviewed ? (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3" />
-                                Graded
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {submission.score}/8
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Needs grading
+                                Ungraded
                               </span>
                             )}
-                            {submission.flagged && (
-                              <span
-                                className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1 cursor-help"
-                                title={`${submission.flag_reason || "Flagged for review"}${submission.paste_attempts ? `\nPaste attempts: ${submission.paste_attempts}` : ''}${submission.suspected_ai_responses ? `\nSuspected AI responses: ${submission.suspected_ai_responses}` : ''}`}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Quick Approve button - only for unflagged, ungraded submissions */}
+                              {!submission.flagged && !submission.reviewed && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    quickApprove(submission)
+                                  }}
+                                  className="p-1.5 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+                                  title="Quick approve (6/8)"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                              )}
+                              {/* Grade button - opens slide-out panel */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openGradingPanel(submission)
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors text-xs font-medium"
                               >
-                                <AlertTriangle className="h-3 w-3" />
-                                Flagged
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500">{submission.student_email}</p>
-                        </div>
-
-                        <div className="flex items-center gap-4 flex-shrink-0">
-                          {submission.score !== null && (
-                            <span className="text-lg font-bold text-teal-600">{submission.score}/9</span>
-                          )}
-                          <div className="text-right text-xs text-gray-500">
-                            <p>{formatDate(submission.submitted_at)}</p>
-                            <p>{submission.message_count} msgs</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                                Grade
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1669,6 +2129,35 @@ export default function InstructorPortal() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6 border border-amber-200/50 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Grades</h3>
+
+              {/* Export Options */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Export Options</h4>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Week:</label>
+                    <select
+                      value={exportWeek}
+                      onChange={(e) => setExportWeek(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      <option value="all">All Weeks</option>
+                      {Array.from({ length: 14 }, (_, i) => i + 2).map((week) => (
+                        <option key={week} value={week}>Week {week}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportGradedOnly}
+                      onChange={(e) => setExportGradedOnly(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-teal-500 focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700">Graded submissions only</span>
+                  </label>
+                </div>
+              </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="border rounded-xl p-4">
@@ -1682,7 +2171,7 @@ export default function InstructorPortal() {
                     className="bg-teal-600 hover:bg-teal-700 text-white"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Download CSV
+                    Export Canvas CSV
                   </Button>
                 </div>
 
@@ -1696,7 +2185,7 @@ export default function InstructorPortal() {
                     variant="outline"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Download Detailed CSV
+                    Export Detailed CSV
                   </Button>
                 </div>
               </div>
@@ -1704,6 +2193,184 @@ export default function InstructorPortal() {
           </div>
         )}
       </main>
+
+      {/* Slide-out Grading Panel */}
+      <AnimatePresence>
+        {gradingPanelOpen && selectedSubmission && (() => {
+          const submission = selectedSubmission as SubmissionDetail
+          return (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 z-40"
+              onClick={closeGradingPanel}
+            />
+
+            {/* Slide-out Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-full lg:w-[80%] xl:w-[70%] bg-white shadow-2xl z-50 flex flex-col lg:flex-row"
+            >
+              {/* Close button */}
+              <button
+                onClick={closeGradingPanel}
+                className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+
+              {/* Transcript side (60%) */}
+              <div className="flex-1 lg:w-[60%] border-r border-gray-200 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-lg font-bold text-gray-900">{submission.student_name}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                      Week {submission.week_number}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {submission.message_count} exchanges
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {Math.round(submission.duration_minutes)} min
+                    </span>
+                    {(submission.paste_attempts ?? 0) > 0 && (
+                      <span className="text-sm text-amber-600">
+                        {submission.paste_attempts} paste
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Flag warning */}
+                {submission.flagged && (
+                  <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                    <div className="flex items-center gap-2 text-sm text-red-700">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span className="font-medium">Flagged:</span>
+                      <span>{submission.flag_reason || "Review required"}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transcript */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                  {submission.transcript.map((msg: { role: string; content: string }, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl text-sm ${
+                        msg.role === "user"
+                          ? "bg-teal-50 border border-teal-100 ml-8"
+                          : "bg-gray-50 border border-gray-100 mr-8"
+                      }`}
+                    >
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        {msg.role === "user" ? "Student" : "Mirror"}
+                      </p>
+                      <p className="text-gray-800 whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reflection */}
+                {submission.reflection && (
+                  <div className="px-6 py-4 border-t border-gray-200 bg-blue-50">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Reflection</h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {submission.reflection}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Grading side (40%) */}
+              <div className="lg:w-[40%] flex flex-col overflow-hidden bg-gray-50">
+                {/* Score header */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Grading</h3>
+                  <div className="text-3xl font-bold text-teal-600">{totalScore}/8</div>
+                </div>
+
+                {/* Rubric */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  {(Object.keys(RUBRIC) as Array<keyof typeof RUBRIC>).map((key) => (
+                    <div key={key}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">{RUBRIC[key].name}</span>
+                        <span className="text-xs text-gray-500">{SCORE_LABELS[grade[key]]}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        {[0, 1, 2].map((score) => (
+                          <button
+                            key={score}
+                            onClick={() => setGrade(g => ({ ...g, [key]: score }))}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                              grade[key] === score
+                                ? "bg-teal-600 text-white shadow-sm"
+                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Notes */}
+                  <div className="pt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      value={grade.grader_notes || ''}
+                      onChange={(e) => setGrade(g => ({ ...g, grader_notes: e.target.value || null }))}
+                      placeholder="Private notes..."
+                      rows={3}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="px-6 py-4 border-t border-gray-200 bg-white space-y-2">
+                  <Button
+                    onClick={() => saveGradeFromPanel(false)}
+                    disabled={isSaving}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                    Approve Score
+                  </Button>
+                  <Button
+                    onClick={() => saveGradeFromPanel(true)}
+                    disabled={isSaving}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    Save & Next
+                  </Button>
+                  <Button
+                    onClick={closeGradingPanel}
+                    variant="ghost"
+                    className="w-full text-gray-500"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+          )
+        })()}
+      </AnimatePresence>
     </div>
   )
 }

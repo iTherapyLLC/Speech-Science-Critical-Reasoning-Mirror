@@ -1,2262 +1,879 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import confetti from "canvas-confetti"
-import { jsPDF } from "jspdf"
-import {
-  Download,
-  FileText,
-  Menu,
-  X,
-  ChevronDown,
-  ChevronRight,
-  BookOpen,
-  Brain,
-  Stethoscope,
-  Send,
-  Loader2,
-  ExternalLink,
-  Sparkles,
-  CheckCircle2,
-  Circle,
-  GraduationCap,
-  Lock,
-  Unlock,
-  ClipboardCheck,
-  Award,
-  Shield,
-  AlertTriangle,
-  Mic,
-  HelpCircle,
-  Flag,
-  Activity,
-  Target,
-  BarChart3,
-  MessageCircle,
-} from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { SubmissionModal } from "@/components/submission-modal"
-import { GradingInfoModal, GradingInfoContent } from "@/components/grading-info"
-import { ConversationGuide } from "@/components/conversation-guide"
-import { weeksData, acts, type WeekData } from "@/lib/weeks-data"
-import {
-  type ConversationFlowState,
-  createInitialFlowState,
-  detectAreas,
-  mergeAreasAddressed,
-  MIN_EXCHANGES,
-} from "@/lib/conversation-flow"
-import { cn } from "@/lib/utils"
-import { getSupabase } from "@/lib/supabase"
-import {
-  type StudentProgress,
-  createEmptyProgress,
-  loadProgress,
-  saveProgress,
-  isMidtermUnlocked,
-  isFinalUnlocked,
-  getLockedMessage,
-  getSubmissionWindowMessage,
-  isWithinSubmissionWindow,
-  updateWeekProgress,
-  MIN_EXCHANGES_FOR_COMPLETION,
-  getCompletionStats,
-} from "@/lib/progress-tracking"
-import type { Message as DBMessage, Json } from "@/lib/database.types"
-import { WEEK_1_TOPICS, CONVERSATION_STARTERS } from "@/lib/knowledge/syllabus"
+import { Check, Circle, Lock, Loader2, Copy, ArrowRight } from "lucide-react"
 
-export interface Message {
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface Message {
   role: "user" | "assistant"
   content: string
 }
 
-// Confetti celebration function
-const triggerConfetti = () => {
-  const duration = 3000
-  const animationEnd = Date.now() + duration
-  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }
+type Screen =
+  | "landing"
+  | "name"
+  | "instructions"
+  | "conversation"
+  | "copy-conversation"
+  | "reflection"
+  | "final"
 
-  const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min
+// ============================================================================
+// WEEK DATA
+// ============================================================================
 
-  const interval = window.setInterval(() => {
-    const timeLeft = animationEnd - Date.now()
-    if (timeLeft <= 0) return clearInterval(interval)
+const COURSE_START = new Date('2026-01-20')
 
-    const particleCount = 50 * (timeLeft / duration)
+const WEEKS = [
+  { week: 1, title: "Foundations & Orientation", graded: false },
+  { week: 2, title: "Evidence-Based Practice", graded: true },
+  { week: 3, title: "Acoustic Perturbation Measures", graded: true },
+  { week: 4, title: "Reverberation & Measurement", graded: true },
+  { week: 5, title: "Software Comparability", graded: true },
+  { week: 6, title: "Noise vs. Speech Masking", graded: true },
+  { week: 7, title: "Context in Speech-in-Noise", graded: true },
+  { week: 8, title: "Categorical Perception", graded: true },
+  { week: 9, title: "Voice Quality Meta-analysis", graded: true },
+  { week: 10, title: "AVQI Validity", graded: true },
+  { week: 11, title: "Vowels in Speech", graded: true },
+  { week: 12, title: "Production Benefits of Overhearing", graded: true },
+  { week: 13, title: "Categorization & Speech-in-Noise", graded: true },
+  { week: 14, title: "Nasalance Effects on CPP", graded: true },
+  { week: 15, title: "High-Quality Acoustic Analysis", graded: true },
+]
 
-    confetti({
-      ...defaults,
-      particleCount,
-      origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-      colors: ["#0d9488", "#14b8a6", "#5eead4", "#fbbf24", "#f59e0b"],
-    })
-    confetti({
-      ...defaults,
-      particleCount,
-      origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-      colors: ["#0d9488", "#14b8a6", "#5eead4", "#fbbf24", "#f59e0b"],
-    })
-  }, 250)
-}
+const WEEK_UNLOCK_DATES = [
+  new Date('2026-01-20'), // Week 1
+  new Date('2026-01-27'), // Week 2
+  new Date('2026-02-03'), // Week 3
+  new Date('2026-02-10'), // Week 4
+  new Date('2026-02-17'), // Week 5
+  new Date('2026-02-24'), // Week 6
+  new Date('2026-03-03'), // Week 7
+  new Date('2026-03-10'), // Week 8
+  new Date('2026-03-17'), // Week 9
+  new Date('2026-03-24'), // Week 10
+  new Date('2026-04-06'), // Week 11 (after spring break)
+  new Date('2026-04-13'), // Week 12
+  new Date('2026-04-20'), // Week 13
+  new Date('2026-04-27'), // Week 14
+  new Date('2026-05-04'), // Week 15
+]
 
-// Helper function to get icon component for Week 1 topics
-const getTopicIcon = (iconName: string) => {
-  switch (iconName) {
-    case "waveform": return Activity
-    case "target": return Target
-    case "chart": return BarChart3
-    case "message": return MessageCircle
-    default: return Sparkles
+function getCurrentWeek(): number {
+  const today = new Date()
+  // Find the highest week number that has unlocked
+  for (let i = WEEK_UNLOCK_DATES.length - 1; i >= 0; i--) {
+    if (today >= WEEK_UNLOCK_DATES[i]) {
+      return i + 1
+    }
   }
+  return 1
 }
 
-// Animation variants
-const sidebarVariants = {
-  hidden: { x: "-100%", opacity: 0 },
-  visible: { x: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 200 } },
-  exit: { x: "-100%", opacity: 0, transition: { duration: 0.2 } },
+function isWeekUnlocked(weekNumber: number): boolean {
+  const today = new Date()
+  const unlockDate = WEEK_UNLOCK_DATES[weekNumber - 1]
+  return today >= unlockDate
 }
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, type: "spring", damping: 20, stiffness: 100 },
-  }),
+function getUnlockDateString(weekNumber: number): string {
+  const date = WEEK_UNLOCK_DATES[weekNumber - 1]
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const messageVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", damping: 25, stiffness: 200 } },
-}
-
-const pulseVariants = {
-  pulse: {
-    scale: [1, 1.05, 1],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-  },
-}
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export default function Home() {
-  const [selectedWeek, setSelectedWeek] = useState(1)
+  // Screen state
+  const [screen, setScreen] = useState<Screen>("landing")
+
+  // Week state
+  const [selectedWeek, setSelectedWeek] = useState<number>(1)
+  const [completedWeeks, setCompletedWeeks] = useState<Set<number>>(new Set([1])) // Week 1 always "done"
+
+  // Name state
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+
+  // Conversation state
   const [messages, setMessages] = useState<Message[]>([])
-  const [studentName, setStudentName] = useState<string>("")
-  const [showNameModal, setShowNameModal] = useState(false)
+  const [currentQuestion, setCurrentQuestion] = useState(1)
+  const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [expandedActs, setExpandedActs] = useState<string[]>(["I"])
-  const [hasTriggeredFirstMessageConfetti, setHasTriggeredFirstMessageConfetti] = useState(false)
-  const [nameInput, setNameInput] = useState("")
-  const [input, setInput] = useState("")
-  const [showPasteModal, setShowPasteModal] = useState(false)
+
+  // Reflection state
+  const [reflection, setReflection] = useState("")
+
+  // Copy state
+  const [conversationCopied, setConversationCopied] = useState(false)
+  const [finalCopied, setFinalCopied] = useState(false)
+
+  // Paste detection (silent)
   const [pasteAttempts, setPasteAttempts] = useState(0)
-  const [submissionFlagged, setSubmissionFlagged] = useState(false)
-  const [suspectedAIResponses, setSuspectedAIResponses] = useState(0)
-  const [flagReasons, setFlagReasons] = useState<string[]>([])
-  const [showDictationHelp, setShowDictationHelp] = useState(false)
-  const [showSubmissionModal, setShowSubmissionModal] = useState(false)
-  const [showGradingInfo, setShowGradingInfo] = useState(false)
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
-  const [breakReminderShown, setBreakReminderShown] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const [studentProgress, setStudentProgress] = useState<StudentProgress | null>(null)
-  const [isMidtermMode, setIsMidtermMode] = useState(false)
-  const [midtermPhase, setMidtermPhase] = useState(1)
-  const [midtermPaperSections, setMidtermPaperSections] = useState<{
-    startingPoint?: string;
-    actI?: string;
-    actII?: string;
-    whyItMatters?: string;
-  }>({})
-  const [isFinalMode, setIsFinalMode] = useState(false)
-  const [finalPhase, setFinalPhase] = useState(1)
-  const [finalPaperSections, setFinalPaperSections] = useState<{
-    openingReflection?: string;
-    actI?: string;
-    actII?: string;
-    actIII?: string;
-    actIV?: string;
-    centralQuestion?: string;
-  }>({})
-  const [conversationFlow, setConversationFlow] = useState<ConversationFlowState>(() => createInitialFlowState())
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [flagged, setFlagged] = useState(false)
 
-  // Calculate progress from studentProgress
-  const completedWeeks = new Set<number>(
-    studentProgress?.weeks.filter(w => w.completed).map(w => w.week) || []
-  )
-  const progress = studentProgress
-    ? Math.round((completedWeeks.size / (weeksData.length - 1)) * 100) // -1 because Week 1 is foundations
-    : 0
+  // Refs
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Check if midterm/final are unlocked
-  const midtermUnlocked = studentProgress ? isMidtermUnlocked(studentProgress) : false
-  const finalUnlocked = studentProgress ? isFinalUnlocked(studentProgress) : false
-  const completionStats = studentProgress ? getCompletionStats(studentProgress) : null
-
+  // Load completed weeks from localStorage
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    const savedName = localStorage.getItem("slhs303_student_name")
-    if (savedName) {
-      setStudentName(savedName)
-    } else {
-      setShowNameModal(true)
-    }
-  }, [])
-
-  // Load student progress from localStorage
-  useEffect(() => {
-    const saved = loadProgress()
+    const saved = localStorage.getItem('slhs303_completed_weeks')
     if (saved) {
-      setStudentProgress(saved)
-    } else if (studentName) {
-      const newProgress = createEmptyProgress(studentName)
-      setStudentProgress(newProgress)
-      saveProgress(newProgress)
-    }
-  }, [studentName])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  // Trigger confetti on first message
-  useEffect(() => {
-    if (messages.length === 2 && !hasTriggeredFirstMessageConfetti) {
-      triggerConfetti()
-      setHasTriggeredFirstMessageConfetti(true)
-    }
-  }, [messages.length, hasTriggeredFirstMessageConfetti])
-
-  // SB 243 Compliance: Break reminder after 3 hours of continuous use
-  useEffect(() => {
-    if (!sessionStartTime || breakReminderShown) return
-
-    const checkInterval = setInterval(() => {
-      const hoursElapsed = (Date.now() - sessionStartTime.getTime()) / (1000 * 60 * 60)
-      if (hoursElapsed >= 3 && !breakReminderShown) {
-        setBreakReminderShown(true)
-        // Add break reminder as system message
-        const breakMessage: Message = {
-          role: "assistant",
-          content: "**Break Reminder:** You've been engaged for over 3 hours. Consider taking a break — rest supports learning and memory consolidation. The research shows that spaced practice is more effective than marathon sessions. I'll be here when you return!",
-        }
-        setMessages((prev) => [...prev, breakMessage])
-      }
-    }, 60000) // Check every minute
-
-    return () => clearInterval(checkInterval)
-  }, [sessionStartTime, breakReminderShown])
-
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const finalName = nameInput.trim() || "Student"
-    setStudentName(finalName)
-    localStorage.setItem("slhs303_student_name", finalName)
-    setShowNameModal(false)
-  }
-
-  const handleWeekChange = (week: number) => {
-    setSelectedWeek(week)
-    setMessages([])
-    setHasTriggeredFirstMessageConfetti(false)
-    setSessionStartTime(null)
-    setBreakReminderShown(false)
-    setSidebarOpen(false)
-    setConversationFlow(createInitialFlowState())
-  }
-
-  const toggleAct = (actNumber: string) => {
-    setExpandedActs((prev) =>
-      prev.includes(actNumber) ? prev.filter((a) => a !== actNumber) : [...prev, actNumber]
-    )
-  }
-
-  const sendMessage = useCallback(
-    async (content: string) => {
-      // Track session start time on first message
-      if (!sessionStartTime) {
-        setSessionStartTime(new Date())
-      }
-      const userMessage: Message = { role: "user", content }
-      setMessages((prev) => [...prev, userMessage])
-      setIsLoading(true)
-
       try {
-        // Determine which API to use based on mode
-        if (isFinalMode) {
-          // Final exam mode - use final API
-          const response = await fetch("/api/final", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: content,
-              conversationHistory: messages,
-              currentPhase: finalPhase,
-              paperSections: finalPaperSections,
-              studentName: studentName,
-            }),
-          })
-
-          const data = await response.json()
-
-          if (!response.ok || data.error) {
-            console.error("Final API error:", data.error, data.errorCode)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: data.error || "Something went wrong. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          if (!data.response) {
-            console.error("Missing response in final API data:", data)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: "I didn't receive a proper response. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          const assistantMessage: Message = { role: "assistant", content: data.response }
-          setMessages((prev) => [...prev, assistantMessage])
-
-          // Update final progress in studentProgress
-          if (studentProgress) {
-            const updatedProgress = {
-              ...studentProgress,
-              final: {
-                ...studentProgress.final,
-                started: true,
-                lastSavedAt: new Date().toISOString(),
-              }
-            }
-            setStudentProgress(updatedProgress)
-            saveProgress(updatedProgress)
-          }
-        } else if (isMidtermMode) {
-          // Midterm mode - use midterm API
-          const response = await fetch("/api/midterm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: content,
-              conversationHistory: messages,
-              currentPhase: midtermPhase,
-              paperSections: midtermPaperSections,
-              studentName: studentName,
-            }),
-          })
-
-          const data = await response.json()
-
-          if (!response.ok || data.error) {
-            console.error("Midterm API error:", data.error, data.errorCode)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: data.error || "Something went wrong. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          if (!data.response) {
-            console.error("Missing response in midterm API data:", data)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: "I didn't receive a proper response. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          const assistantMessage: Message = { role: "assistant", content: data.response }
-          setMessages((prev) => [...prev, assistantMessage])
-
-          // Update midterm progress in studentProgress
-          if (studentProgress) {
-            const updatedProgress = {
-              ...studentProgress,
-              midterm: {
-                ...studentProgress.midterm,
-                started: true,
-                lastSavedAt: new Date().toISOString(),
-              }
-            }
-            setStudentProgress(updatedProgress)
-            saveProgress(updatedProgress)
-          }
-        } else {
-          // Weekly conversation mode - use chat API
-          const weekInfo = weeksData.find((w) => w.week === selectedWeek)
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: content,
-              conversationHistory: messages,
-              weekNumber: selectedWeek,
-              weekTopic: weekInfo?.topic || "",
-            }),
-          })
-
-          const data = await response.json()
-
-          // Check for error responses from the API
-          if (!response.ok || data.error) {
-            console.error("API error:", data.error, data.errorCode)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: data.error || "Something went wrong. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          // Validate that we have a response
-          if (!data.response) {
-            console.error("Missing response in API data:", data)
-            const errorMessage: Message = {
-              role: "assistant",
-              content: "I didn't receive a proper response. Please try again.",
-            }
-            setMessages((prev) => [...prev, errorMessage])
-            return
-          }
-
-          const assistantMessage: Message = { role: "assistant", content: data.response }
-          setMessages((prev) => [...prev, assistantMessage])
-
-          // Track exchange count for progress (only for Weeks 2+)
-          if (studentProgress && selectedWeek >= 2) {
-            const currentExchangeCount = Math.floor((messages.length + 2) / 2) // +2 for user + assistant
-            const updatedProgress = updateWeekProgress(
-              studentProgress,
-              selectedWeek,
-              currentExchangeCount,
-              false // Don't auto-complete - will be done on submission
-            )
-            setStudentProgress(updatedProgress)
-            saveProgress(updatedProgress)
-          }
-
-          // Update conversation flow state for rubric tracking (only for Weeks 2+)
-          if (selectedWeek >= 2) {
-            const allMessages = [...messages, userMessage, assistantMessage]
-            const detectedAreas = detectAreas(allMessages)
-            const newExchangeCount = Math.floor(allMessages.length / 2)
-
-            setConversationFlow(prev => ({
-              ...prev,
-              areasAddressed: mergeAreasAddressed(prev.areasAddressed, detectedAreas),
-              exchangeCount: newExchangeCount,
-            }))
-          }
-        }
-      } catch (error) {
-        console.error("Error sending message:", error)
-        // Provide more specific error messages
-        let errorContent = "Something went wrong. Please try again."
-        if (error instanceof TypeError && error.message.includes("fetch")) {
-          errorContent = "Unable to connect to the server. Please check your internet connection and try again."
-        }
-        const errorMessage: Message = {
-          role: "assistant",
-          content: errorContent,
-        }
-        setMessages((prev) => [...prev, errorMessage])
-      } finally {
-        setIsLoading(false)
+        const parsed = JSON.parse(saved)
+        setCompletedWeeks(new Set([1, ...parsed]))
+      } catch {
+        // Ignore parse errors
       }
-    },
-    [messages, selectedWeek, sessionStartTime, isMidtermMode, midtermPhase, midtermPaperSections, isFinalMode, finalPhase, finalPaperSections, studentName, studentProgress, conversationFlow]
-  )
-
-  // Detect potential AI-generated responses
-  const detectPotentialAI = useCallback((text: string, exchangeCount: number): boolean => {
-    // Red flags for AI-generated content
-    const redFlags: string[] = []
-
-    // 1. Message over 300 characters in first 2-3 exchanges
-    if (exchangeCount <= 3 && text.length > 300) {
-      redFlags.push("Long response early in conversation")
     }
+  }, [])
 
-    // 2. Markdown formatting (headers, bullets, bold) - strong indicator
-    if (/^#+\s|^\*\s|^-\s|^\d+\.\s|\*\*.*\*\*|__.*__/m.test(text)) {
-      redFlags.push("Markdown formatting detected")
-    }
-
-    // 3. Perfect structure indicators
-    const structuredPhrases = [
-      /^(First|Second|Third|Finally|In conclusion|To summarize|In summary)/im,
-      /^(Here are|There are several|The key (points|takeaways|findings))/im,
-      /^(Let me explain|Allow me to|I would argue that)/im,
-    ]
-    const structuredMatches = structuredPhrases.filter(p => p.test(text)).length
-    if (structuredMatches >= 2) {
-      redFlags.push("Overly structured response")
-    }
-
-    // 4. Academic phrases uncommon in casual conversation
-    const academicPhrases = [
-      /\b(furthermore|moreover|consequently|subsequently|notwithstanding)\b/i,
-      /\b(it is (important|essential|crucial) to note)\b/i,
-      /\b(this (demonstrates|illustrates|highlights|underscores))\b/i,
-      /\b(in (light of|terms of|regard to))\b/i,
-    ]
-    const academicCount = academicPhrases.filter(p => p.test(text)).length
-    if (academicCount >= 2) {
-      redFlags.push("Unusually academic language")
-    }
-
-    // 5. Very long response with perfect punctuation and no hedging
-    const hasHedging = /\b(I think|maybe|probably|I'm not sure|I guess|kind of|sort of|like)\b/i.test(text)
-    const hasPerfectPunctuation = text.split('.').every(s => s.trim() === '' || /^[A-Z]/.test(s.trim()))
-    if (text.length > 400 && !hasHedging && hasPerfectPunctuation) {
-      redFlags.push("Polished response lacking natural hedging")
-    }
-
-    // If 2+ red flags, mark as suspected AI
-    if (redFlags.length >= 2) {
-      setSuspectedAIResponses(prev => prev + 1)
-      setFlagReasons(prev => [...prev, ...redFlags])
-      // Flag submission if 2+ suspected AI responses
-      if (suspectedAIResponses + 1 >= 2) {
-        setSubmissionFlagged(true)
-        if (!flagReasons.includes("Multiple suspected AI responses")) {
-          setFlagReasons(prev => [...prev, "Multiple suspected AI responses"])
-        }
-      }
-      return true
-    }
-    return false
-  }, [suspectedAIResponses, flagReasons])
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (input.trim() && !isLoading) {
-      // Check for potential AI-generated content
-      const userMessageCount = messages.filter(m => m.role === "user").length
-      detectPotentialAI(input.trim(), userMessageCount + 1)
-
-      sendMessage(input.trim())
-      setInput("")
-    }
+  // Save completed weeks
+  const markWeekComplete = (week: number) => {
+    const newCompleted = new Set([...completedWeeks, week])
+    setCompletedWeeks(newCompleted)
+    localStorage.setItem('slhs303_completed_weeks', JSON.stringify([...newCompleted].filter(w => w !== 1)))
   }
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  // Get current week info
+  const currentWeek = getCurrentWeek()
+  const weekData = WEEKS.find(w => w.week === selectedWeek)
+
+  // Handle paste (silent enforcement)
+  const handlePaste = (e: React.ClipboardEvent) => {
     const pastedText = e.clipboardData.getData('text')
     if (pastedText.length > 50) {
       e.preventDefault()
-      const newAttemptCount = pasteAttempts + 1
-      setPasteAttempts(newAttemptCount)
-      // Flag submission on 3rd attempt
-      if (newAttemptCount >= 3) {
-        setSubmissionFlagged(true)
+      const newAttempts = pasteAttempts + 1
+      setPasteAttempts(newAttempts)
+
+      if (newAttempts >= 3) {
+        setFlagged(true)
       }
-      setShowPasteModal(true)
-      setInput("")
     }
   }
 
-  const exportConversation = () => {
-    const weekInfo = weeksData.find((w) => w.week === selectedWeek)
-    const now = new Date()
-    const dateStr = now.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-    const timeStr = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-    const fileDate = now.toISOString().split("T")[0]
+  // Get paste message (only shown when blocked)
+  const getPasteMessage = () => {
+    if (pasteAttempts === 1) return "Please type your answer."
+    if (pasteAttempts >= 2) return "This requires typed responses."
+    return null
+  }
 
-    let markdown = `# SLHS 303 - Critical Reasoning Mirror Conversation\n\n`
-    markdown += `**Student:** ${studentName}\n\n`
-    markdown += `**Week ${selectedWeek}:** ${weekInfo?.topic}\n\n`
-    markdown += `**Date:** ${dateStr} at ${timeStr}\n\n`
-    markdown += `---\n\n`
+  // Send message to API
+  const sendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return
 
-    messages.forEach((msg) => {
-      if (msg.role === "user") {
-        markdown += `**Student:** ${msg.content}\n\n`
+    const userMessage = inputValue.trim()
+    setInputValue("")
+    setIsLoading(true)
+
+    const newMessages: Message[] = [...messages, { role: "user", content: userMessage }]
+    setMessages(newMessages)
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory: newMessages,
+          weekNumber: selectedWeek,
+          questionNumber: currentQuestion,
+          studentName: `${firstName} ${lastName}`,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.response) {
+        setMessages([...newMessages, { role: "assistant", content: data.response }])
+
+        // Check if we should move to next question or end
+        if (data.questionComplete) {
+          if (currentQuestion < 6) {
+            setCurrentQuestion(currentQuestion + 1)
+          }
+        }
+
+        if (data.conversationComplete) {
+          // Stay on conversation screen, show completion message
+        }
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+    }
+
+    setIsLoading(false)
+    inputRef.current?.focus()
+  }
+
+  // Format transcript for display/copy
+  const formatTranscript = () => {
+    let transcript = ""
+    for (let i = 0; i < messages.length; i += 2) {
+      const assistant = messages[i]
+      const user = messages[i + 1]
+      if (assistant && user) {
+        transcript += `MIRROR: ${assistant.content}\n\nYOU: ${user.content}\n\n`
+      }
+    }
+    return transcript.trim()
+  }
+
+  // Format final output
+  const formatFinalOutput = () => {
+    const date = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
+    let output = `SLHS 303 - Week ${selectedWeek}: ${weekData?.title}\n`
+    output += `Student: ${firstName} ${lastName}\n`
+    output += `Date: ${date}\n\n`
+    output += `--- CONVERSATION (Your Work) ---\n\n`
+    output += formatTranscript()
+    output += `\n\n--- REFLECTION (Summary of Your Work) ---\n\n`
+    output += reflection
+
+    if (flagged) {
+      output += `\n\n[FLAGGED: Multiple paste attempts]`
+    }
+
+    return output
+  }
+
+  // Copy to clipboard
+  const copyToClipboard = async (text: string, type: 'conversation' | 'final') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'conversation') {
+        setConversationCopied(true)
       } else {
-        markdown += `**Assistant:** ${msg.content}\n\n`
+        setFinalCopied(true)
       }
-    })
-
-    const blob = new Blob([markdown], { type: "text/markdown" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `SLHS303_Week${selectedWeek}_Conversation_${fileDate}.md`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
-    // Trigger confetti on export
-    triggerConfetti()
-  }
-
-  // Midterm-specific PDF generation
-  const downloadMidtermPDF = (pdfStudentName: string, dateStr: string, fileDate: string) => {
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "letter"
-    })
-
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 25
-    const contentWidth = pageWidth - (margin * 2)
-    let yPosition = margin
-
-    // Helper function to add page number footer
-    const addFooter = (pageNum: number, totalPages: number) => {
-      doc.setFontSize(10)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        `Page ${pageNum} of ${totalPages}`,
-        pageWidth / 2,
-        pageHeight - 15,
-        { align: "center" }
-      )
-    }
-
-    // Helper function to check if we need a new page
-    const checkNewPage = (neededHeight: number) => {
-      if (yPosition + neededHeight > pageHeight - 30) {
-        doc.addPage()
-        yPosition = margin
-        return true
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      if (type === 'conversation') {
+        setConversationCopied(true)
+      } else {
+        setFinalCopied(true)
       }
-      return false
     }
-
-    // Title
-    doc.setFontSize(16)
-    doc.setTextColor(0, 0, 0)
-    doc.setFont("helvetica", "bold")
-    doc.text("SLHS 303 MIDTERM PROJECT", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 8
-
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "normal")
-    doc.text("Speech and Hearing Science — CSU East Bay", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 12
-
-    // Student info
-    doc.setFontSize(11)
-    doc.text(`${pdfStudentName}`, pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 6
-    doc.text(dateStr, pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 12
-
-    // Divider
-    doc.setDrawColor(100, 100, 100)
-    doc.line(margin, yPosition, pageWidth - margin, yPosition)
-    yPosition += 15
-
-    // Extract paper sections from the conversation
-    // This is a simplified approach - the actual sections are built in the conversation
-    // For now, we'll format the conversation as a paper
-    const sections = [
-      { title: "Starting Point", content: midtermPaperSections.startingPoint },
-      { title: "Act I: Measurement Confounds", content: midtermPaperSections.actI },
-      { title: "Act II: Perception Under Noise", content: midtermPaperSections.actII },
-      { title: "Why It Matters", content: midtermPaperSections.whyItMatters },
-    ]
-
-    // If we have structured sections, use them
-    const hasSections = Object.values(midtermPaperSections).some(s => s && s.length > 0)
-
-    if (hasSections) {
-      sections.forEach((section, index) => {
-        if (section.content) {
-          checkNewPage(20)
-
-          // Section header
-          doc.setFontSize(12)
-          doc.setFont("helvetica", "bold")
-          doc.setTextColor(88, 28, 135) // Purple color
-          doc.text(section.title, margin, yPosition)
-          yPosition += 8
-
-          // Section content
-          doc.setFontSize(11)
-          doc.setFont("helvetica", "normal")
-          doc.setTextColor(40, 40, 40)
-
-          const lines = doc.splitTextToSize(section.content, contentWidth)
-          lines.forEach((line: string) => {
-            checkNewPage(6)
-            doc.text(line, margin, yPosition)
-            yPosition += 5.5
-          })
-
-          yPosition += 10 // Space between sections
-        }
-      })
-    } else {
-      // Fall back to conversation format if no structured sections
-      doc.setFontSize(11)
-      doc.setFont("helvetica", "italic")
-      doc.setTextColor(100, 100, 100)
-      doc.text("Paper sections extracted from conversation:", margin, yPosition)
-      yPosition += 10
-
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(40, 40, 40)
-
-      // Filter to only assistant messages (the drafted sections)
-      const paperContent = messages
-        .filter(m => m.role === "assistant")
-        .map(m => m.content)
-        .join("\n\n")
-
-      const lines = doc.splitTextToSize(paperContent, contentWidth)
-      lines.forEach((line: string) => {
-        checkNewPage(6)
-        doc.text(line, margin, yPosition)
-        yPosition += 5.5
-      })
-    }
-
-    // Add page numbers to all pages
-    const totalPages = doc.getNumberOfPages()
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i)
-      addFooter(i, totalPages)
-    }
-
-    // Generate filename
-    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
-    const filename = `SLHS303_Midterm_${sanitizedName}_${fileDate}.pdf`
-
-    // Download
-    doc.save(filename)
-
-    // Trigger confetti
-    triggerConfetti()
   }
 
-  // Final Exam-specific PDF generation
-  const downloadFinalPDF = (pdfStudentName: string, dateStr: string, fileDate: string) => {
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "letter"
-    })
-
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 25
-    const contentWidth = pageWidth - (margin * 2)
-    let yPosition = margin
-
-    // Helper function to add page number footer
-    const addFooter = (pageNum: number, totalPages: number) => {
-      doc.setFontSize(10)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        `Page ${pageNum} of ${totalPages}`,
-        pageWidth / 2,
-        pageHeight - 15,
-        { align: "center" }
-      )
-    }
-
-    // Helper function to check if we need a new page
-    const checkNewPage = (neededHeight: number) => {
-      if (yPosition + neededHeight > pageHeight - 30) {
-        doc.addPage()
-        yPosition = margin
-        return true
-      }
-      return false
-    }
-
-    // Title
-    doc.setFontSize(16)
-    doc.setTextColor(0, 0, 0)
-    doc.setFont("helvetica", "bold")
-    doc.text("SLHS 303 FINAL EXAM", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 8
-
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "normal")
-    doc.text("Speech and Hearing Science — CSU East Bay", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 12
-
-    // Student info
-    doc.setFontSize(11)
-    doc.text(`${pdfStudentName}`, pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 6
-    doc.text(dateStr, pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 12
-
-    // Divider
-    doc.setDrawColor(100, 100, 100)
-    doc.line(margin, yPosition, pageWidth - margin, yPosition)
-    yPosition += 15
-
-    // Extract paper sections from the conversation
-    const sections = [
-      { title: "Opening Reflection", content: finalPaperSections.openingReflection },
-      { title: "Act I: Measurement Confounds", content: finalPaperSections.actI },
-      { title: "Act II: Perception Under Noise", content: finalPaperSections.actII },
-      { title: "Act III: Voice & Phonation", content: finalPaperSections.actIII },
-      { title: "Act IV: Articulation & Motor Control", content: finalPaperSections.actIV },
-      { title: "Central Question: Why Speech is Worth the Energy", content: finalPaperSections.centralQuestion },
-    ]
-
-    // If we have structured sections, use them
-    const hasSections = Object.values(finalPaperSections).some(s => s && s.length > 0)
-
-    if (hasSections) {
-      sections.forEach((section) => {
-        if (section.content) {
-          checkNewPage(20)
-
-          // Section header
-          doc.setFontSize(12)
-          doc.setFont("helvetica", "bold")
-          doc.setTextColor(217, 119, 6) // Amber color
-          doc.text(section.title, margin, yPosition)
-          yPosition += 8
-
-          // Section content
-          doc.setFontSize(11)
-          doc.setFont("helvetica", "normal")
-          doc.setTextColor(40, 40, 40)
-
-          const lines = doc.splitTextToSize(section.content, contentWidth)
-          lines.forEach((line: string) => {
-            checkNewPage(6)
-            doc.text(line, margin, yPosition)
-            yPosition += 5.5
-          })
-
-          yPosition += 10 // Space between sections
-        }
-      })
-    } else {
-      // Fall back to conversation format if no structured sections
-      doc.setFontSize(11)
-      doc.setFont("helvetica", "italic")
-      doc.setTextColor(100, 100, 100)
-      doc.text("Paper sections extracted from conversation:", margin, yPosition)
-      yPosition += 10
-
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(40, 40, 40)
-
-      // Filter to only assistant messages (the drafted sections)
-      const paperContent = messages
-        .filter(m => m.role === "assistant")
-        .map(m => m.content)
-        .join("\n\n")
-
-      const lines = doc.splitTextToSize(paperContent, contentWidth)
-      lines.forEach((line: string) => {
-        checkNewPage(6)
-        doc.text(line, margin, yPosition)
-        yPosition += 5.5
-      })
-    }
-
-    // Add page numbers to all pages
-    const totalPages = doc.getNumberOfPages()
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i)
-      addFooter(i, totalPages)
-    }
-
-    // Generate filename
-    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
-    const filename = `SLHS303_Final_${sanitizedName}_${fileDate}.pdf`
-
-    // Download
-    doc.save(filename)
-
-    // Trigger confetti
-    triggerConfetti()
+  // Start a week
+  const startWeek = (week: number) => {
+    if (!isWeekUnlocked(week)) return
+    setSelectedWeek(week)
+    setMessages([])
+    setCurrentQuestion(1)
+    setInputValue("")
+    setReflection("")
+    setConversationCopied(false)
+    setFinalCopied(false)
+    setPasteAttempts(0)
+    setFlagged(false)
+    setScreen("name")
   }
 
-  const downloadPDF = () => {
-    // Prompt for student name if not set or if they want to change it
-    let pdfStudentName = studentName
-    const enteredName = window.prompt(
-      "Enter your name for the PDF (this will appear in the header):",
-      studentName || ""
-    )
-
-    if (enteredName === null) {
-      // User cancelled
-      return
-    }
-
-    pdfStudentName = enteredName.trim() || "Student"
-
-    // Update stored name if changed
-    if (pdfStudentName !== studentName) {
-      setStudentName(pdfStudentName)
-      localStorage.setItem("slhs303_student_name", pdfStudentName)
-    }
-
-    const now = new Date()
-    const dateStr = now.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-    const fileDate = now.toISOString().split("T")[0].replace(/-/g, "")
-
-    // Handle final exam PDF differently
-    if (isFinalMode) {
-      downloadFinalPDF(pdfStudentName, dateStr, fileDate)
-      return
-    }
-
-    // Handle midterm PDF differently
-    if (isMidtermMode) {
-      downloadMidtermPDF(pdfStudentName, dateStr, fileDate)
-      return
-    }
-
-    const weekInfo = weeksData.find((w) => w.week === selectedWeek)
-
-    // Create PDF
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "letter"
-    })
-
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 20
-    const contentWidth = pageWidth - (margin * 2)
-    let yPosition = margin
-
-    // Helper function to add page number footer
-    const addFooter = (pageNum: number, totalPages: number) => {
-      doc.setFontSize(10)
-      doc.setTextColor(128, 128, 128)
-      doc.text(
-        `Page ${pageNum} of ${totalPages}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: "center" }
-      )
-    }
-
-    // Helper function to check if we need a new page
-    const checkNewPage = (neededHeight: number) => {
-      if (yPosition + neededHeight > pageHeight - 25) {
-        doc.addPage()
-        yPosition = margin
-        return true
-      }
-      return false
-    }
-
-    // Header
-    doc.setFontSize(18)
-    doc.setTextColor(13, 148, 136) // Teal color
-    doc.setFont("helvetica", "bold")
-    doc.text("SLHS 303: Speech and Hearing Science", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 8
-
-    doc.setFontSize(14)
-    doc.setTextColor(0, 0, 0)
-    doc.text("Critical Reasoning Mirror - Conversation Transcript", pageWidth / 2, yPosition, { align: "center" })
-    yPosition += 12
-
-    // Student info box
-    doc.setFillColor(240, 253, 250) // Light teal background
-    doc.setDrawColor(13, 148, 136)
-    doc.roundedRect(margin, yPosition, contentWidth, 28, 3, 3, "FD")
-
-    yPosition += 7
-    doc.setFontSize(11)
-    doc.setFont("helvetica", "bold")
-    doc.setTextColor(0, 0, 0)
-    doc.text(`Student: ${pdfStudentName}`, margin + 5, yPosition)
-
-    yPosition += 6
-    doc.setFont("helvetica", "normal")
-    doc.text(`Week ${selectedWeek}: ${weekInfo?.topic || ""}`, margin + 5, yPosition)
-
-    yPosition += 6
-    doc.text(`Date: ${dateStr}`, margin + 5, yPosition)
-
-    yPosition += 6
-    doc.text(`Course: SLHS 303 - CSU East Bay`, margin + 5, yPosition)
-
-    yPosition += 12
-
-    // Divider line
-    doc.setDrawColor(200, 200, 200)
-    doc.line(margin, yPosition, pageWidth - margin, yPosition)
-    yPosition += 10
-
-    // Conversation content
-    doc.setFontSize(10)
-
-    messages.forEach((msg) => {
-      const label = msg.role === "user" ? "Student:" : "Mirror:"
-      const labelColor = msg.role === "user" ? [13, 148, 136] : [107, 114, 128] // Teal for student, gray for mirror
-
-      // Calculate text height for this message
-      const lines = doc.splitTextToSize(msg.content, contentWidth - 15)
-      const textHeight = lines.length * 5 + 12
-
-      checkNewPage(textHeight)
-
-      // Label
-      doc.setFont("helvetica", "bold")
-      doc.setTextColor(labelColor[0], labelColor[1], labelColor[2])
-      doc.text(label, margin, yPosition)
-      yPosition += 5
-
-      // Message content
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(60, 60, 60)
-
-      lines.forEach((line: string) => {
-        checkNewPage(6)
-        doc.text(line, margin + 5, yPosition)
-        yPosition += 5
-      })
-
-      yPosition += 7 // Space between messages
-    })
-
-    // Add page numbers to all pages
-    const totalPages = doc.getNumberOfPages()
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i)
-      addFooter(i, totalPages)
-    }
-
-    // Generate filename: SLHS303_Week[X]_[StudentName]_[Date].pdf
-    const sanitizedName = pdfStudentName.replace(/[^a-zA-Z0-9]/g, "")
-    const filename = `SLHS303_Week${selectedWeek}_${sanitizedName}_${fileDate}.pdf`
-
-    // Download
-    doc.save(filename)
-
-    // Trigger confetti
-    triggerConfetti()
+  // Reset everything
+  const startOver = () => {
+    setScreen("landing")
+    setMessages([])
+    setCurrentQuestion(1)
+    setInputValue("")
+    setReflection("")
+    setConversationCopied(false)
+    setFinalCopied(false)
+    setPasteAttempts(0)
+    setFlagged(false)
+    setFirstName("")
+    setLastName("")
   }
 
-  const handleSubmitForGrading = () => {
-    setShowSubmissionModal(true)
-  }
+  // Word count for reflection
+  const wordCount = reflection.trim().split(/\s+/).filter(w => w.length > 0).length
 
-  const currentWeek = weeksData.find((w) => w.week === selectedWeek)
-  const currentAct = acts.find((a) => a.number === currentWeek?.act)
+  // Check if 6 questions are done
+  const conversationComplete = messages.length >= 12 // 6 questions + 6 answers
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
-      {/* Mobile sidebar overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sidebar - Desktop always visible, Mobile slide-out */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <AnimatePresence mode="wait">
-        {(sidebarOpen || mounted) && (
-          <motion.aside
-            variants={sidebarVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className={cn(
-              "fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white/80 backdrop-blur-xl border-r border-amber-200/50 shadow-xl lg:shadow-none",
-              "flex flex-col",
-              !sidebarOpen && "hidden lg:flex"
-            )}
-          >
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-amber-200/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <motion.div
-                    variants={pulseVariants}
-                    animate="pulse"
-                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/25"
-                  >
-                    <GraduationCap className="w-5 h-5 text-white" />
-                  </motion.div>
-                  <div>
-                    <h1 className="font-bold text-gray-900">SLHS 303</h1>
-                    <p className="text-xs text-gray-500">Speech Science</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden hover:bg-amber-100"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
 
-            {/* Scrollable Sidebar Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* This Week's Focus Card */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0}
-                className="rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 p-4 text-white shadow-lg shadow-teal-500/25"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm font-medium opacity-90">This Week's Focus</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1">Week {selectedWeek}: {currentWeek?.topic}</h3>
-                <p className="text-sm opacity-80 mb-3">{(currentAct as any)?.displayLabel || `Act ${currentAct?.number}: ${currentAct?.title}`}</p>
-
-                <div className="bg-white/20 rounded-xl p-3 backdrop-blur-sm">
-                  {currentWeek?.article ? (
-                    <>
-                      <p className="text-sm font-medium mb-1">{currentWeek.article.title}</p>
-                      <p className="text-xs opacity-80 mb-2">by {currentWeek.article.author}</p>
-                      {currentWeek.article.notebookLMLink && (
-                        <a
-                          href={currentWeek.article.notebookLMLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs bg-white/30 hover:bg-white/40 transition-colors rounded-lg px-3 py-1.5"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Open in NotebookLM
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium mb-1">Foundations Week</p>
-                      <p className="text-xs opacity-80">No article — building vocabulary and frameworks</p>
-                    </>
-                  )}
-                </div>
-              </motion.div>
-
-              {/* Progress Card */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={1}
-                className="rounded-2xl bg-white border border-amber-200/50 p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Your Progress</span>
-                  <span className="text-sm font-bold text-teal-600">{progress}%</span>
-                </div>
-                <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {completedWeeks.size} of {weeksData.length - 1} weeks completed
-                </p>
-              </motion.div>
-
-              {/* Midterm & Final Buttons */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={1.5}
-                className="rounded-2xl bg-white border border-amber-200/50 p-4 shadow-sm space-y-3"
-              >
-                <span className="text-sm font-medium text-gray-700">Assessments</span>
-
-                {/* Midterm Button */}
-                <button
-                  onClick={() => {
-                    if (midtermUnlocked) {
-                      setIsMidtermMode(true)
-                      setMessages([])
-                      setSidebarOpen(false)
-                    }
-                  }}
-                  disabled={!midtermUnlocked}
-                  className={cn(
-                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                    midtermUnlocked
-                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-lg shadow-purple-500/25"
-                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  )}
-                >
-                  {midtermUnlocked ? (
-                    <ClipboardCheck className="w-5 h-5 shrink-0" />
-                  ) : (
-                    <Lock className="w-5 h-5 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">Midterm Project</p>
-                    <p className={cn(
-                      "text-xs truncate",
-                      midtermUnlocked ? "opacity-80" : "opacity-60"
-                    )}>
-                      {midtermUnlocked
-                        ? (studentProgress?.midterm.started
-                            ? `Phase ${studentProgress.midterm.currentPhase}/6 — Continue`
-                            : "Build your synthesis paper")
-                        : getLockedMessage('midterm', studentProgress || createEmptyProgress())}
-                    </p>
-                  </div>
-                  {completionStats && !midtermUnlocked && (
-                    <span className="text-xs font-medium shrink-0">
-                      {completionStats.midtermProgress}%
-                    </span>
-                  )}
-                </button>
-
-                {/* Final Button */}
-                <button
-                  onClick={() => {
-                    if (finalUnlocked) {
-                      setIsFinalMode(true)
-                      setIsMidtermMode(false)
-                      setMessages([])
-                      setSidebarOpen(false)
-                    }
-                  }}
-                  disabled={!finalUnlocked}
-                  className={cn(
-                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                    finalUnlocked
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/25"
-                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  )}
-                >
-                  {finalUnlocked ? (
-                    <Award className="w-5 h-5 shrink-0" />
-                  ) : (
-                    <Lock className="w-5 h-5 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">Final Exam</p>
-                    <p className={cn(
-                      "text-xs truncate",
-                      finalUnlocked ? "opacity-80" : "opacity-60"
-                    )}>
-                      {finalUnlocked
-                        ? (studentProgress?.final.started
-                            ? `Phase ${studentProgress.final.currentPhase}/8 — Continue`
-                            : "Complete course synthesis")
-                        : getLockedMessage('final', studentProgress || createEmptyProgress())}
-                    </p>
-                  </div>
-                  {completionStats && !finalUnlocked && (
-                    <span className="text-xs font-medium shrink-0">
-                      {completionStats.finalProgress}%
-                    </span>
-                  )}
-                </button>
-              </motion.div>
-
-              {/* Week Navigator */}
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={2}
-                className="rounded-2xl bg-white border border-amber-200/50 overflow-hidden shadow-sm"
-              >
-                <div className="p-3 border-b border-amber-100">
-                  <span className="text-sm font-medium text-gray-700">Course Navigator</span>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {acts.map((act) => {
-                    const actWeeks = weeksData.filter((w) => w.act === act.number)
-                    const isExpanded = expandedActs.includes(act.number)
-
-                    return (
-                      <div key={act.number}>
-                        <button
-                          onClick={() => toggleAct(act.number)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-amber-50 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <motion.div
-                              animate={{ rotate: isExpanded ? 90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            </motion.div>
-                            <span className="text-sm font-medium text-gray-700">
-                              {act.displayLabel}
-                            </span>
-                          </div>
-                        </button>
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              {actWeeks.map((week) => (
-                                <button
-                                  key={week.week}
-                                  onClick={() => handleWeekChange(week.week)}
-                                  className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all",
-                                    selectedWeek === week.week
-                                      ? "bg-teal-50 border-l-3 border-teal-500"
-                                      : "hover:bg-amber-50 border-l-3 border-transparent"
-                                  )}
-                                >
-                                  {completedWeeks.has(week.week) ? (
-                                    <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
-                                  ) : selectedWeek === week.week ? (
-                                    <motion.div
-                                      animate={{ scale: [1, 1.2, 1] }}
-                                      transition={{ duration: 1.5, repeat: Infinity }}
-                                    >
-                                      <Circle className="w-4 h-4 text-teal-500 fill-teal-500 shrink-0" />
-                                    </motion.div>
-                                  ) : (
-                                    <Circle className="w-4 h-4 text-gray-300 shrink-0" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <p
-                                      className={cn(
-                                        "text-sm truncate",
-                                        selectedWeek === week.week
-                                          ? "font-medium text-teal-700"
-                                          : "text-gray-600"
-                                      )}
-                                    >
-                                      Week {week.week}: {week.topic}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )
-                  })}
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Instructor Link */}
-            <div className="shrink-0 p-4 border-t border-amber-200/50 bg-white/50">
-              <Link
-                href="/instructor-portal-m7k9"
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 transition-all shadow-sm"
-              >
-                <Shield className="h-4 w-4" />
-                Instructor Portal
-              </Link>
-            </div>
-
-            {/* Student Name Footer */}
-            {studentName && (
-              <div className="p-4 border-t border-amber-200/50 bg-amber-50/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-sm font-medium">
-                      {studentName.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">{studentName}</p>
-                      <p className="text-xs text-gray-500">Student</p>
-                    </div>
-                  </div>
-                  <a
-                    href="/safety"
-                    className="text-xs text-gray-400 hover:text-teal-600 transition-colors"
-                  >
-                    Safety & Privacy
-                  </a>
-                </div>
-              </div>
-            )}
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <motion.header
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-white/80 backdrop-blur-xl border-b border-amber-200/50 px-4 py-3 flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden hover:bg-amber-100"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">
-                {isFinalMode ? "Final Exam" : isMidtermMode ? "Midterm Project" : "Critical Reasoning Mirror"}
-              </h1>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                {isFinalMode
-                  ? `Phase ${finalPhase}/8 — Course Synthesis`
-                  : isMidtermMode
-                    ? `Phase ${midtermPhase}/6 — Building Your Synthesis Paper`
-                    : `Week ${selectedWeek}: ${currentWeek?.topic}`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isFinalMode ? (
-              <>
-                {/* Final exam mode buttons */}
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsFinalMode(false)
-                      setMessages([])
-                      setFinalPhase(1)
-                    }}
-                    className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="hidden sm:inline">Exit Final</span>
-                  </Button>
-                </motion.div>
-                {finalPhase === 8 && (
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      size="sm"
-                      onClick={downloadPDF}
-                      disabled={messages.length === 0}
-                      className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/25 transition-all"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Download Paper</span>
-                    </Button>
-                  </motion.div>
-                )}
-              </>
-            ) : isMidtermMode ? (
-              <>
-                {/* Midterm mode buttons */}
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsMidtermMode(false)
-                      setMessages([])
-                      setMidtermPhase(1)
-                    }}
-                    className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="hidden sm:inline">Exit Midterm</span>
-                  </Button>
-                </motion.div>
-                {midtermPhase === 6 && (
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      size="sm"
-                      onClick={downloadPDF}
-                      disabled={messages.length === 0}
-                      className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white shadow-md shadow-purple-500/25 transition-all"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Download Paper</span>
-                    </Button>
-                  </motion.div>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Grading Info button - always visible */}
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowGradingInfo(true)}
-                    className="flex items-center gap-2 bg-white hover:bg-purple-50 border-purple-200 text-purple-700 hover:text-purple-800 hover:border-purple-300 transition-all"
-                  >
-                    <GraduationCap className="h-4 w-4" />
-                    <span className="hidden sm:inline">Grading</span>
-                  </Button>
-                </motion.div>
-
-                {/* Weekly mode buttons */}
-                {selectedWeek >= 2 && (
-                  <>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={downloadPDF}
-                        disabled={messages.length === 0}
-                        className="flex items-center gap-2 bg-white hover:bg-amber-50 border-amber-300 text-amber-700 hover:text-amber-800 hover:border-amber-400 transition-all"
-                      >
-                        <FileText className="h-4 w-4" />
-                        <span className="hidden sm:inline">Download PDF</span>
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button
-                        size="sm"
-                        onClick={handleSubmitForGrading}
-                        disabled={messages.length === 0}
-                        className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-teal-500/25 transition-all"
-                      >
-                        <Send className="h-4 w-4" />
-                        <span className="hidden sm:inline">Submit</span>
-                      </Button>
-                    </motion.div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </motion.header>
-
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Conversation Guide Panel - only for weekly conversations (Week 2+) */}
-          {!isMidtermMode && !isFinalMode && selectedWeek >= 2 && messages.length > 0 && (
-            <ConversationGuide
-              weekNumber={selectedWeek}
-              weekInfo={currentWeek}
-              areasAddressed={conversationFlow.areasAddressed}
-              exchangeCount={conversationFlow.exchangeCount}
-              isExpanded={conversationFlow.guideExpanded}
-              onToggle={() => setConversationFlow(prev => ({ ...prev, guideExpanded: !prev.guideExpanded }))}
-            />
-          )}
-
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex flex-col items-center justify-center h-full text-center px-4"
-              >
-                {isFinalMode ? (
-                  /* Final Exam Welcome Screen */
-                  <div className="max-w-lg space-y-8">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.3, type: "spring" }}
-                    >
-                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-xl shadow-amber-500/30">
-                        <Award className="w-10 h-10 text-white" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        Final Exam
-                      </h2>
-                      <p className="text-gray-600 text-lg leading-relaxed mb-4">
-                        Over the next 90-120 minutes, we'll build your complete course synthesis paper together.
-                        This paper integrates everything from across all four acts.
-                      </p>
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
-                        <h3 className="font-semibold text-amber-900 mb-2">Your Paper Structure (4-5 pages):</h3>
-                        <ul className="text-sm text-amber-800 space-y-1">
-                          <li>1. <strong>Opening Reflection</strong> — Your assumptions before this course</li>
-                          <li>2. <strong>Act I Insight</strong> — Measurement Confounds (Weeks 3-5)</li>
-                          <li>3. <strong>Act II Insight</strong> — Perception Under Noise (Weeks 6-8)</li>
-                          <li>4. <strong>Act III Insight</strong> — Voice & Phonation (Weeks 10-12)</li>
-                          <li>5. <strong>Act IV Insight</strong> — Articulation & Motor Control (Weeks 13-15)</li>
-                          <li>6. <strong>Central Question</strong> — Why speech is worth the energy</li>
-                        </ul>
-                      </div>
-                    </motion.div>
-
-                    <motion.button
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => sendMessage("I'm ready to start the final exam.")}
-                      className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium shadow-lg shadow-amber-500/25 hover:from-amber-600 hover:to-orange-600 transition-all"
-                    >
-                      <Sparkles className="w-5 h-5" />
-                      Begin Final Exam
-                    </motion.button>
-                  </div>
-                ) : isMidtermMode ? (
-                  /* Midterm Welcome Screen */
-                  <div className="max-w-lg space-y-8">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.3, type: "spring" }}
-                    >
-                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
-                        <ClipboardCheck className="w-10 h-10 text-white" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        Midterm Project
-                      </h2>
-                      <p className="text-gray-600 text-lg leading-relaxed mb-4">
-                        Over the next 60-90 minutes, we'll build your synthesis paper together.
-                        I'll ask questions to help you think through each section.
-                      </p>
-                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-left">
-                        <h3 className="font-semibold text-purple-900 mb-2">Your Paper Structure:</h3>
-                        <ul className="text-sm text-purple-800 space-y-1">
-                          <li>1. <strong>Starting Point</strong> — Your assumptions before this course</li>
-                          <li>2. <strong>Act I Concept</strong> — One concept from Weeks 3-5</li>
-                          <li>3. <strong>Act II Concept</strong> — One concept from Weeks 6-8</li>
-                          <li>4. <strong>Why It Matters</strong> — Clinical relevance</li>
-                        </ul>
-                      </div>
-                    </motion.div>
-
-                    <motion.button
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => sendMessage("I'm ready to start the midterm.")}
-                      className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium shadow-lg shadow-purple-500/25 hover:from-purple-600 hover:to-indigo-600 transition-all"
-                    >
-                      <Sparkles className="w-5 h-5" />
-                      Begin Midterm Project
-                    </motion.button>
-                  </div>
-                ) : selectedWeek === 1 ? (
-                  /* Week 1 Foundations - Complete onboarding with grading rubric and anti-gaming */
-                  <div className="max-w-2xl space-y-6 text-left overflow-y-auto max-h-[calc(100vh-200px)] pr-2">
-                    {/* Welcome Header */}
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.3, type: "spring" }}
-                      className="text-center"
-                    >
-                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-xl shadow-amber-500/30">
-                        <BookOpen className="w-10 h-10 text-white" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        Welcome to Speech Science
-                      </h2>
-                      <p className="text-gray-600 text-lg leading-relaxed mb-4">
-                        This week we're building vocabulary and frameworks that will support everything that follows.
-                      </p>
-                    </motion.div>
-
-                    {/* No graded conversation note */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="bg-amber-50 border border-amber-200 rounded-xl p-4"
-                    >
-                      <p className="text-amber-800 text-sm">
-                        <strong>No graded conversation this week.</strong> Use this time to explore the foundational concepts below and understand how grading works starting Week 2.
-                      </p>
-                    </motion.div>
-
-                    {/* How Conversations Are Graded */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6 }}
-                      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
-                          <Award className="w-5 h-5 text-white" />
-                        </div>
-                        <h3 className="font-semibold text-gray-900">How Conversations Are Graded</h3>
-                      </div>
-
-                      <p className="text-gray-600 text-sm mb-4">
-                        Each weekly conversation is worth <strong>8 points</strong>. The Mirror is designed to <em>help</em> you earn full credit by guiding you through the conversation.
-                      </p>
-
-                      <p className="text-teal-700 text-sm font-medium mb-4 bg-teal-50 p-3 rounded-lg">
-                        You earn points by showing you're THINKING — not by having perfect answers.
-                      </p>
-
-                      <div className="space-y-3">
-                        {/* Engagement */}
-                        <div className="border-l-4 border-blue-400 pl-3">
-                          <p className="text-sm font-semibold text-gray-900">ENGAGEMENT (2 points)</p>
-                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
-                            <li><span className="text-red-500 font-medium">0:</span> Didn't read the article or major misunderstanding</li>
-                            <li><span className="text-amber-500 font-medium">1:</span> Read it but only surface-level understanding</li>
-                            <li><span className="text-green-500 font-medium">2:</span> Shows honest effort to understand what researchers studied and found</li>
-                          </ul>
-                        </div>
-
-                        {/* Evidence */}
-                        <div className="border-l-4 border-purple-400 pl-3">
-                          <p className="text-sm font-semibold text-gray-900">USING EVIDENCE (2 points)</p>
-                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
-                            <li><span className="text-red-500 font-medium">0:</span> No reference to the article, or making things up</li>
-                            <li><span className="text-amber-500 font-medium">1:</span> Vague references ("the study found...")</li>
-                            <li><span className="text-green-500 font-medium">2:</span> Points to specific findings, numbers, or details</li>
-                          </ul>
-                        </div>
-
-                        {/* Critical Questions */}
-                        <div className="border-l-4 border-amber-400 pl-3">
-                          <p className="text-sm font-semibold text-gray-900">ASKING GOOD QUESTIONS (2 points)</p>
-                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
-                            <li><span className="text-red-500 font-medium">0:</span> No questions, accepts everything at face value</li>
-                            <li><span className="text-amber-500 font-medium">1:</span> Asks questions but doesn't explain why they matter</li>
-                            <li><span className="text-green-500 font-medium">2:</span> Identifies something confusing, limited, or worth questioning — and explains why</li>
-                          </ul>
-                        </div>
-
-                        {/* Connections */}
-                        <div className="border-l-4 border-emerald-400 pl-3">
-                          <p className="text-sm font-semibold text-gray-900">MAKING CONNECTIONS (2 points)</p>
-                          <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
-                            <li><span className="text-red-500 font-medium">0:</span> No connection to real-world application</li>
-                            <li><span className="text-amber-500 font-medium">1:</span> Generic connection ("this is useful for SLPs")</li>
-                            <li><span className="text-green-500 font-medium">2:</span> Specific, thoughtful connection to how this might matter in practice</li>
-                          </ul>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-sm text-gray-700">
-                          <strong>TOTAL: 8 points</strong>
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          The Mirror naturally guides you through these areas. If something's missing before you submit, it will prompt you. Your job is just to think out loud and engage honestly.
-                        </p>
-                        <p className="text-xs text-teal-600 mt-2 italic">
-                          This is NOT about having right answers. It's about showing your thinking process.
-                        </p>
-                      </div>
-                    </motion.div>
-
-                    {/* One Important Rule - Anti-Gaming Section */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7 }}
-                      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
-                          <Shield className="w-5 h-5 text-white" />
-                        </div>
-                        <h3 className="font-semibold text-gray-900">One Important Rule</h3>
-                      </div>
-
-                      <p className="text-gray-600 text-sm mb-4">
-                        You must <strong>TYPE</strong> your responses or use <strong>DICTATION</strong> (speech-to-text). You cannot paste text from ChatGPT, Google, or your notes.
-                      </p>
-
-                      <p className="text-gray-600 text-sm mb-4">
-                        <strong>Why?</strong> Pasting bypasses the whole point — which is YOU thinking through the material. Rough, imperfect thoughts you typed yourself are worth more than polished paragraphs from somewhere else.
-                      </p>
-
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                        <p className="text-red-800 text-sm font-semibold mb-2">THE SYSTEM DETECTS PASTING:</p>
-                        <ul className="text-xs text-red-700 space-y-1">
-                          <li>• <strong>First attempt:</strong> Warning, paste blocked</li>
-                          <li>• <strong>Second attempt:</strong> Final warning</li>
-                          <li>• <strong>Third attempt:</strong> Submission flagged, possible point deduction</li>
-                        </ul>
-                      </div>
-
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                        <p className="text-amber-800 text-sm font-semibold mb-2">THE MIRROR ALSO RECOGNIZES AI-GENERATED TEXT:</p>
-                        <ul className="text-xs text-amber-700 space-y-1">
-                          <li>• Walls of perfectly structured paragraphs</li>
-                          <li>• Academic language that doesn't match conversation</li>
-                          <li>• Sophisticated terms with no buildup or confusion</li>
-                          <li>• Text that doesn't answer the question asked</li>
-                        </ul>
-                        <p className="text-xs text-amber-600 mt-2 italic">
-                          If the Mirror suspects outsourced thinking, it will ask you to try again in your own words.
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                        <p className="text-gray-800 text-sm font-semibold mb-2">HOW TO ENTER RESPONSES:</p>
-                        <ul className="text-xs text-gray-600 space-y-1">
-                          <li>• <strong>Type directly</strong> (recommended)</li>
-                          <li>• <strong>Mac:</strong> Press Fn key twice for dictation</li>
-                          <li>• <strong>iPhone/Android:</strong> Tap microphone icon on keyboard</li>
-                          <li>• <strong>Windows:</strong> Press Win + H</li>
-                        </ul>
-                        <p className="text-xs text-gray-500 mt-2 italic">
-                          Students who type their own messy thoughts learn more than those who paste polished AI text.
-                        </p>
-                      </div>
-                    </motion.div>
-
-                    {/* Get Familiar with the Mirror - Topic Cards */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.9 }}
-                      className="space-y-4"
-                    >
-                      <div className="text-center">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">Get Familiar with the Mirror</h3>
-                        <p className="text-gray-600 text-sm">
-                          Before Week 2, explore these foundational concepts. Click any topic to start a guided conversation:
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {Object.values(WEEK_1_TOPICS).map((topic, index) => {
-                          const IconComponent = getTopicIcon(topic.icon)
-                          const gradients = [
-                            "from-blue-500 to-indigo-600",
-                            "from-amber-500 to-orange-600",
-                            "from-emerald-500 to-teal-600",
-                            "from-purple-500 to-pink-600",
-                          ]
-                          return (
-                            <motion.button
-                              key={topic.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 1.0 + index * 0.1 }}
-                              whileHover={{ scale: 1.02, y: -2 }}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={() => {
-                                const openingMessage: Message = {
-                                  role: "assistant",
-                                  content: topic.starterMessage,
-                                }
-                                setMessages([openingMessage])
-                              }}
-                              className="flex items-start gap-3 p-4 rounded-xl text-left transition-all bg-white border-2 border-gray-100 shadow-sm hover:shadow-md hover:border-teal-200 group"
-                            >
-                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${gradients[index]} shadow-lg transition-transform group-hover:scale-110`}>
-                                <IconComponent className="w-6 h-6 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 text-sm mb-0.5">{topic.title}</p>
-                                <p className="text-xs text-gray-500 leading-relaxed">{topic.subtitle}</p>
-                              </div>
-                              <ChevronRight className="w-5 h-5 text-gray-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </motion.button>
-                          )
-                        })}
-                      </div>
-                    </motion.div>
-
-                    {/* Assessment & Grading Section */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1.5 }}
-                      className="mt-8"
-                    >
-                      <GradingInfoContent />
-                    </motion.div>
-                  </div>
-                ) : (
-                  /* Weekly Conversation Welcome Screen - Weeks 2-14 */
-                  <div className="max-w-lg space-y-8">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.3, type: "spring" }}
-                    >
-                      <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-teal-500/30">
-                        <Sparkles className="w-10 h-10 text-white" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        Critical Reasoning Mirror
-                      </h2>
-                      <p className="text-gray-600 text-lg leading-relaxed">
-                        This tool reflects your thinking back to you so you can examine it.
-                        It's not a source of truth—it's a mirror for your reasoning about{" "}
-                        <span className="font-semibold text-teal-600">{currentWeek?.topic}</span>.
-                      </p>
-                    </motion.div>
-
-                    {CONVERSATION_STARTERS[selectedWeek] && (
-                      <motion.button
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          const starterMessage = CONVERSATION_STARTERS[selectedWeek]
-                          const openingMessage: Message = {
-                            role: "assistant",
-                            content: starterMessage,
-                          }
-                          setMessages([openingMessage])
-                        }}
-                        className="w-full flex items-center gap-4 p-5 rounded-2xl text-left transition-all bg-white border-2 border-teal-200 shadow-md hover:shadow-lg hover:border-teal-300 group"
-                      >
-                        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-teal-500 to-emerald-500 shadow-lg transition-transform group-hover:scale-110">
-                          <Send className="w-7 h-7 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900 mb-1">Start This Week's Conversation</p>
-                          <p className="text-sm text-gray-600 leading-relaxed">The Mirror will guide you through this week's article with questions to develop your critical thinking.</p>
-                        </div>
-                        <ChevronRight className="w-6 h-6 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </motion.button>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <>
-                <AnimatePresence>
-                  {messages.map((message, index) => (
-                    <motion.div
-                      key={index}
-                      variants={messageVariants}
-                      initial="hidden"
-                      animate="visible"
-                      className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 shadow-sm",
-                          message.role === "user"
-                            ? "bg-gradient-to-br from-teal-500 to-emerald-600 text-white"
-                            : "bg-white border border-amber-200/50 text-gray-900"
-                        )}
-                      >
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start"
-                  >
-                    <div className="bg-white border border-amber-200/50 rounded-2xl px-4 py-3 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-teal-500" />
-                        <span className="text-sm text-gray-500">Reflecting...</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-
-          {/* Input area - show for Week 1 only when conversation is active */}
-          {(selectedWeek >= 2 || isMidtermMode || isFinalMode || (selectedWeek === 1 && messages.length > 0)) && (
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="border-t border-amber-200/50 bg-white/80 backdrop-blur-xl p-4"
-            >
-              <form onSubmit={handleSubmit} className="flex gap-3 max-w-4xl mx-auto">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste}
-                  placeholder="Type your thinking here..."
-                  className="flex-1 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-gray-400"
-                  disabled={isLoading}
-                />
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    type="submit"
-                    disabled={!input.trim() || isLoading}
-                    className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-xl px-5 py-3 shadow-lg shadow-teal-500/25 transition-all disabled:opacity-50 disabled:shadow-none"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="sr-only">Send</span>
-                  </Button>
-                </motion.div>
-              </form>
-              <div className="flex items-center justify-center gap-2 mt-2 max-w-4xl mx-auto">
-                <p className="text-xs text-gray-400">Responses must be typed directly.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowDictationHelp(!showDictationHelp)}
-                  className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1 transition-colors"
-                >
-                  <Mic className="h-3 w-3" />
-                  Use dictation
-                  <HelpCircle className="h-3 w-3" />
-                </button>
-              </div>
-              <AnimatePresence>
-                {showDictationHelp && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="max-w-md mx-auto mt-3 bg-teal-50 border border-teal-200 rounded-xl p-4 text-left"
-                  >
-                    <p className="text-sm text-teal-800 font-medium mb-2">You can speak your responses instead of typing:</p>
-                    <ul className="text-xs text-teal-700 space-y-1">
-                      <li><strong>Mac:</strong> Press Fn key twice, or Edit → Start Dictation</li>
-                      <li><strong>iPhone/iPad:</strong> Tap the microphone icon on keyboard</li>
-                      <li><strong>Android:</strong> Tap the microphone icon on keyboard</li>
-                      <li><strong>Windows:</strong> Press Win + H</li>
-                    </ul>
-                    <p className="text-xs text-teal-600 mt-2 italic">Speaking your thoughts often helps you think more naturally than typing.</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      {/* Name modal */}
-      <AnimatePresence>
-        {showNameModal && (
+        {/* ================================================================ */}
+        {/* SCREEN 1: LANDING */}
+        {/* ================================================================ */}
+        {screen === "landing" && (
           <motion.div
+            key="landing"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="min-h-screen flex flex-col items-center justify-center p-6"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8"
-            >
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/30">
-                <GraduationCap className="w-8 h-8 text-white" />
+            <div className="w-full max-w-md space-y-8">
+              {/* Header */}
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-slate-900">SLHS 303</h1>
+                <p className="text-slate-600 mt-1">Critical Reasoning Mirror</p>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                Welcome to SLHS 303
-              </h2>
-              <p className="text-gray-600 text-center mb-8">
-                Your name will be included in exported conversations for Canvas submission.
-              </p>
-              <form onSubmit={handleNameSubmit} className="space-y-4">
+
+              {/* Current Week */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <p className="text-sm font-medium text-teal-600 uppercase tracking-wide mb-2">
+                  This Week
+                </p>
+                <h2 className="text-xl font-bold text-slate-900 mb-4">
+                  Week {currentWeek}: {WEEKS[currentWeek - 1]?.title}
+                </h2>
+                <button
+                  onClick={() => startWeek(currentWeek)}
+                  className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors text-lg"
+                >
+                  Start
+                </button>
+              </div>
+
+              {/* Previous Weeks */}
+              {currentWeek > 1 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wide px-1">
+                    Previous Weeks
+                  </p>
+                  {WEEKS.slice(0, currentWeek - 1).reverse().map((week) => (
+                    <button
+                      key={week.week}
+                      onClick={() => startWeek(week.week)}
+                      className="w-full flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors text-left"
+                    >
+                      {completedWeeks.has(week.week) ? (
+                        <Check className="w-5 h-5 text-green-500 shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-slate-300 shrink-0" />
+                      )}
+                      <span className="text-slate-700">
+                        Week {week.week}: {week.title}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Upcoming Weeks */}
+              {currentWeek < 15 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wide px-1">
+                    Coming Soon
+                  </p>
+                  {WEEKS.slice(currentWeek, Math.min(currentWeek + 3, 15)).map((week) => (
+                    <div
+                      key={week.week}
+                      className="w-full flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 text-left opacity-60"
+                    >
+                      <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                      <span className="text-slate-500">
+                        Week {week.week} — unlocks {getUnlockDateString(week.week)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ================================================================ */}
+        {/* SCREEN 2: NAME ENTRY */}
+        {/* ================================================================ */}
+        {screen === "name" && (
+          <motion.div
+            key="name"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col items-center justify-center p-6"
+          >
+            <div className="w-full max-w-md space-y-6">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Before we start, type your name exactly as it appears in Canvas:
+                </h2>
+              </div>
+
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    What's your name?
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    First name
                   </label>
                   <input
                     type="text"
-                    id="name"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full rounded-xl border border-amber-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder=""
                     autoFocus
                   />
                 </div>
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 rounded-xl border-amber-200 hover:bg-amber-50"
-                    onClick={() => {
-                      setStudentName("Student")
-                      localStorage.setItem("slhs303_student_name", "Student")
-                      setShowNameModal(false)
-                    }}
-                  >
-                    Skip
-                  </Button>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
-                    <Button
-                      type="submit"
-                      className="w-full rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 shadow-lg shadow-teal-500/25"
-                    >
-                      Continue
-                    </Button>
-                  </motion.div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Last name
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder=""
+                  />
                 </div>
-              </form>
-            </motion.div>
+              </div>
+
+              <p className="text-sm text-slate-500 text-center">
+                This will appear on your submission.
+              </p>
+
+              <button
+                onClick={() => setScreen("instructions")}
+                disabled={!firstName.trim() || !lastName.trim()}
+                className="w-full py-4 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-lg"
+              >
+                Continue
+              </button>
+            </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* Paste Detection Modal - Escalating Warnings */}
-      <AnimatePresence>
-        {showPasteModal && (
+        {/* ================================================================ */}
+        {/* SCREEN 3: INSTRUCTIONS */}
+        {/* ================================================================ */}
+        {screen === "instructions" && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            key="instructions"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col items-center justify-center p-6"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8"
-            >
-              {pasteAttempts === 1 ? (
-                <>
-                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                    <AlertTriangle className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                    Pasting Detected — First Warning
-                  </h2>
-                  <p className="text-gray-600 text-center mb-4">
-                    The Critical Reasoning Mirror requires typed or dictated responses. Pasting bypasses the thinking process this tool is designed to support.
-                  </p>
-                  <p className="text-amber-700 text-center text-sm font-medium mb-4">
-                    This is your first warning. You have one more chance before your submission is flagged.
-                  </p>
-                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                    <p className="text-sm text-gray-700 font-medium mb-2">Options for entering responses:</p>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Type directly</li>
-                      <li>• Use speech-to-text (built into Mac, iOS, Android)</li>
-                      <li>• Use voice input on mobile</li>
-                    </ul>
-                  </div>
-                </>
-              ) : pasteAttempts === 2 ? (
-                <>
-                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                    <AlertTriangle className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                    Pasting Detected — Final Warning
-                  </h2>
-                  <p className="text-red-600 text-center text-sm font-semibold mb-4">
-                    This is your second paste attempt. One more will flag your submission for instructor review and may result in point deduction.
-                  </p>
-                  <p className="text-gray-600 text-center mb-6">
-                    If you're struggling to articulate your thoughts, that's okay — type what you're thinking, even if it's incomplete. The Mirror will help you develop your ideas.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-500/30">
-                    <Flag className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-red-700 text-center mb-2">
-                    Submission Flagged
-                  </h2>
-                  <p className="text-gray-600 text-center mb-4">
-                    You have attempted to paste text three times. This conversation has been flagged for instructor review.
-                  </p>
-                  <p className="text-gray-600 text-center mb-6">
-                    You may continue the conversation by typing your responses, but your instructor will be notified of the paste attempts when you submit.
-                  </p>
-                </>
-              )}
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  onClick={() => {
-                    setShowPasteModal(false)
-                    setInput("")
-                  }}
-                  className={cn(
-                    "w-full rounded-xl shadow-lg",
-                    pasteAttempts >= 3
-                      ? "bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 shadow-red-500/25"
-                      : pasteAttempts === 2
-                      ? "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-orange-500/25"
-                      : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25"
-                  )}
-                >
-                  {pasteAttempts >= 3 ? "Continue" : pasteAttempts === 2 ? "I Understand - I Will Type My Responses" : "I Understand"}
-                </Button>
-              </motion.div>
-            </motion.div>
+            <div className="w-full max-w-md space-y-6">
+              <h2 className="text-xl font-bold text-slate-900">
+                Here's what you're going to do:
+              </h2>
+
+              <div className="space-y-4 text-slate-700">
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold shrink-0">1</span>
+                  <p>I'll ask you 6 questions about this week's article</p>
+                </div>
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold shrink-0">2</span>
+                  <p>You answer in your own words (a few sentences each)</p>
+                </div>
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold shrink-0">3</span>
+                  <p>Then you write a short reflection using a template</p>
+                </div>
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold shrink-0">4</span>
+                  <p>Then you copy everything and paste it into Canvas</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 space-y-2">
+                <p><strong>This should take about 15-20 minutes.</strong></p>
+                <p>The conversation helps you THINK through the article.</p>
+                <p>The reflection is what gets GRADED.</p>
+                <p>If you do the conversation honestly, the reflection will be easy.</p>
+              </div>
+
+              <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-800 space-y-1">
+                <p><strong>Tips:</strong></p>
+                <p>• If you're not sure, say "I think..." and take a guess</p>
+                <p>• There are no wrong answers — I want to see your thinking</p>
+                <p>• Short answers are fine</p>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setScreen("conversation")
+                  setIsLoading(true)
+                  // Get first question from API
+                  try {
+                    const response = await fetch("/api/chat", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        message: "__START__",
+                        conversationHistory: [],
+                        weekNumber: selectedWeek,
+                        questionNumber: 1,
+                        studentName: `${firstName} ${lastName}`,
+                      }),
+                    })
+                    const data = await response.json()
+                    if (data.response) {
+                      setMessages([{ role: "assistant", content: data.response }])
+                    }
+                  } catch (error) {
+                    console.error("Error starting conversation:", error)
+                  }
+                  setIsLoading(false)
+                }}
+                className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors text-lg"
+              >
+                I'm Ready
+              </button>
+            </div>
           </motion.div>
         )}
+
+        {/* ================================================================ */}
+        {/* SCREEN 4: CONVERSATION */}
+        {/* ================================================================ */}
+        {screen === "conversation" && (
+          <motion.div
+            key="conversation"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col"
+          >
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 px-4 py-3">
+              <h1 className="text-lg font-bold text-slate-900">
+                Week {selectedWeek}: {weekData?.title}
+              </h1>
+              <p className="text-sm text-teal-600 font-medium">
+                Question {currentQuestion} of 6
+              </p>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`${
+                    msg.role === "assistant"
+                      ? "bg-white border border-slate-200 rounded-2xl p-4"
+                      : "bg-teal-50 border border-teal-100 rounded-2xl p-4 ml-8"
+                  }`}
+                >
+                  <p className="text-xs font-medium text-slate-500 mb-1">
+                    {msg.role === "assistant" ? "MIRROR" : "YOU"}
+                  </p>
+                  <p className="text-slate-800 whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Thinking...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Conversation Complete */}
+            {conversationComplete && (
+              <div className="p-4 bg-green-50 border-t border-green-100">
+                <div className="text-center space-y-3">
+                  <p className="text-green-800 font-medium">You did it!</p>
+                  <p className="text-green-700 text-sm">
+                    You just thought through all the key parts of this article.
+                    Now you're ready to write your reflection — the template will make it easy.
+                  </p>
+                  <button
+                    onClick={() => setScreen("copy-conversation")}
+                    className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Input Area */}
+            {!conversationComplete && (
+              <div className="p-4 bg-white border-t border-slate-200">
+                {getPasteMessage() && (
+                  <p className="text-sm text-amber-600 mb-2">{getPasteMessage()}</p>
+                )}
+                <div className="flex gap-2">
+                  <textarea
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onPaste={handlePaste}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        sendMessage()
+                      }
+                    }}
+                    placeholder="Type a few sentences..."
+                    className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                    rows={3}
+                    disabled={isLoading}
+                  />
+                </div>
+                <button
+                  onClick={sendMessage}
+                  disabled={!inputValue.trim() || isLoading}
+                  className="w-full mt-2 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+                >
+                  Send
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ================================================================ */}
+        {/* SCREEN 5: COPY CONVERSATION */}
+        {/* ================================================================ */}
+        {screen === "copy-conversation" && (
+          <motion.div
+            key="copy-conversation"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col p-4"
+          >
+            <div className="max-w-2xl mx-auto w-full space-y-4">
+              <div>
+                <p className="text-sm font-medium text-teal-600 uppercase tracking-wide">
+                  Step 1 of 3
+                </p>
+                <h2 className="text-xl font-bold text-slate-900 mt-1">
+                  Copy your conversation
+                </h2>
+                <p className="text-slate-600 mt-2">
+                  This is your WORK. You'll need it for the reflection.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-4 max-h-96 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
+                  {formatTranscript()}
+                </pre>
+              </div>
+
+              <button
+                onClick={() => copyToClipboard(formatTranscript(), 'conversation')}
+                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {conversationCopied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Conversation
+                  </>
+                )}
+              </button>
+
+              {conversationCopied && (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 text-center">
+                    Save it somewhere safe (Notes, Google Doc) before continuing.
+                  </p>
+                  <button
+                    onClick={() => setScreen("reflection")}
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ================================================================ */}
+        {/* SCREEN 6: REFLECTION */}
+        {/* ================================================================ */}
+        {screen === "reflection" && (
+          <motion.div
+            key="reflection"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col p-4"
+          >
+            <div className="max-w-2xl mx-auto w-full space-y-4 flex-1 flex flex-col">
+              <div>
+                <p className="text-sm font-medium text-teal-600 uppercase tracking-wide">
+                  Step 2 of 3
+                </p>
+                <h2 className="text-xl font-bold text-slate-900 mt-1">
+                  Write your reflection (100-200 words)
+                </h2>
+                <p className="text-slate-600 mt-2">
+                  This is what gets graded. Use the template below.
+                  Just fill in the blanks based on your conversation.
+                </p>
+              </div>
+
+              {/* Template */}
+              <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
+                <p className="font-bold mb-2">REFLECTION TEMPLATE (fill in the blanks):</p>
+                <div className="space-y-2">
+                  <p>The article I read was about _______.</p>
+                  <p>The researchers found that _______.</p>
+                  <p>One specific finding I remember is _______.</p>
+                  <p>Something that confused me or seemed like a limitation was _______. This matters because _______.</p>
+                  <p>This research might matter for clinicians because _______.</p>
+                </div>
+              </div>
+
+              {/* Conversation Reference */}
+              <div className="bg-slate-50 rounded-xl p-4 max-h-48 overflow-y-auto">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                  Your Conversation (use this to fill in the template)
+                </p>
+                <pre className="whitespace-pre-wrap text-xs text-slate-600 font-sans">
+                  {formatTranscript()}
+                </pre>
+              </div>
+
+              {/* Reflection Input */}
+              <div className="flex-1 flex flex-col">
+                <label className="text-sm font-medium text-slate-700 mb-2">
+                  Your Reflection:
+                </label>
+                <textarea
+                  value={reflection}
+                  onChange={(e) => setReflection(e.target.value)}
+                  onPaste={handlePaste}
+                  className="flex-1 min-h-48 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                  placeholder="The article I read was about..."
+                />
+                <div className="flex justify-between items-center mt-2 text-sm">
+                  <span className={wordCount < 100 ? "text-amber-600" : wordCount > 250 ? "text-amber-600" : "text-green-600"}>
+                    {wordCount} words {wordCount < 100 ? "(minimum 100)" : wordCount > 250 ? "(try to keep under 250)" : ""}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-500 text-center">
+                Your reflection should match your conversation.
+                The conversation is your work. The reflection is your summary.
+              </p>
+
+              <button
+                onClick={() => setScreen("final")}
+                disabled={wordCount < 100}
+                className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                Continue
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ================================================================ */}
+        {/* SCREEN 7: FINAL */}
+        {/* ================================================================ */}
+        {screen === "final" && (
+          <motion.div
+            key="final"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen flex flex-col p-4"
+          >
+            <div className="max-w-2xl mx-auto w-full space-y-4">
+              <div>
+                <p className="text-sm font-medium text-teal-600 uppercase tracking-wide">
+                  Step 3 of 3
+                </p>
+                <h2 className="text-xl font-bold text-slate-900 mt-1">
+                  Copy and paste into Canvas
+                </h2>
+                <p className="text-slate-600 mt-2">
+                  Your complete submission is below.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-4 max-h-96 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
+                  {formatFinalOutput()}
+                </pre>
+              </div>
+
+              <button
+                onClick={() => {
+                  copyToClipboard(formatFinalOutput(), 'final')
+                  markWeekComplete(selectedWeek)
+                }}
+                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {finalCopied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Everything
+                  </>
+                )}
+              </button>
+
+              {finalCopied && (
+                <div className="bg-green-50 rounded-xl p-4 space-y-3">
+                  <p className="font-bold text-green-900">NOW GO TO CANVAS:</p>
+                  <ol className="text-sm text-green-800 space-y-1 list-decimal list-inside">
+                    <li>Open Canvas</li>
+                    <li>Click Modules</li>
+                    <li>Click Week {selectedWeek}</li>
+                    <li>Click "Conversation {selectedWeek - 1}"</li>
+                    <li>Paste what you copied</li>
+                    <li>Click Submit</li>
+                  </ol>
+                  <p className="font-bold text-green-900 pt-2">You're done.</p>
+                </div>
+              )}
+
+              <button
+                onClick={startOver}
+                className="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition-colors"
+              >
+                Start Over
+              </button>
+            </div>
+          </motion.div>
+        )}
+
       </AnimatePresence>
-
-      {/* Submission Modal */}
-      <SubmissionModal
-        isOpen={showSubmissionModal}
-        onClose={() => setShowSubmissionModal(false)}
-        messages={messages}
-        weekNumber={selectedWeek}
-        studentName={studentName}
-        sessionStartTime={sessionStartTime}
-        areasAddressed={conversationFlow.areasAddressed}
-        exchangeCount={conversationFlow.exchangeCount}
-        pasteAttempts={pasteAttempts}
-        submissionFlagged={submissionFlagged}
-        suspectedAIResponses={suspectedAIResponses}
-        flagReasons={flagReasons}
-        onSuccess={() => {
-          // Mark the week as complete if it has enough exchanges
-          if (studentProgress && selectedWeek >= 2) {
-            const exchangeCount = Math.floor(messages.length / 2)
-            const meetsMinimum = exchangeCount >= MIN_EXCHANGES_FOR_COMPLETION
-            const updatedProgress = updateWeekProgress(
-              studentProgress,
-              selectedWeek,
-              exchangeCount,
-              meetsMinimum // Only mark complete if minimum is met
-            )
-            setStudentProgress(updatedProgress)
-            saveProgress(updatedProgress)
-          }
-        }}
-      />
-
-      {/* Grading Info Modal */}
-      <GradingInfoModal
-        isOpen={showGradingInfo}
-        onClose={() => setShowGradingInfo(false)}
-      />
     </div>
   )
 }
