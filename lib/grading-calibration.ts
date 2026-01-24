@@ -11,6 +11,15 @@
  * 4. Clinical Connection (WHY IT MATTERS + TAKEAWAY) — Did they connect to clinical practice?
  */
 
+import {
+  ARTICLE_KNOWLEDGE_BASE,
+  validateClaim,
+  validateLimitation,
+  detectArticleMismatch,
+  getArticleInfo,
+  type ArticleKnowledge,
+} from './article-knowledge-base';
+
 export interface CalibrationExample {
   score: 0 | 1 | 2;
   label: string;
@@ -277,7 +286,99 @@ This reflects "honest effort" baseline.
 // SYSTEM PROMPT FOR AI-ASSISTED GRADING
 // ============================================================================
 
-export const GRADING_SYSTEM_PROMPT = `You are a grading assistant for SLHS 303 Speech and Hearing Science.
+/**
+ * Build a week-specific grading prompt with article knowledge
+ */
+export function buildGradingPrompt(weekNumber: number): string {
+  const article = ARTICLE_KNOWLEDGE_BASE[weekNumber];
+  if (!article) {
+    return GRADING_SYSTEM_PROMPT_BASE;
+  }
+
+  return `You are a grading assistant for SLHS 303 Speech and Hearing Science.
+
+${GRADING_GUIDANCE.population}
+
+=== THIS WEEK'S ARTICLE (Week ${weekNumber}) ===
+Title: "${article.title}"
+Author: ${article.author}
+Research Question: ${article.researchQuestion}
+
+KEY FINDINGS (valid claims students should identify):
+${article.keyFindings.map((f, i) => `${i + 1}. ${f}`).join('\n')}
+
+CONFOUNDS & LIMITATIONS (valid limitations students should mention):
+${article.confoundsAndLimitations.map((l, i) => `${i + 1}. ${l}`).join('\n')}
+
+COMMON MISCONCEPTIONS (flag if student's claim matches these):
+${article.commonMisconceptions.map((m, i) => `${i + 1}. "${m}"`).join('\n')}
+
+CLINICAL CONNECTION: ${article.clinicalConnection}
+
+SOCRATIC QUESTIONS (reference for good follow-up questions):
+${article.socraticQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+=== RUBRIC (8 points total) ===
+${GRADING_RUBRIC.map(c => `
+${c.name} (${c.templateSection}) — 0/1/2 points
+- 0: ${c.scoringGuide.zero}
+- 1: ${c.scoringGuide.one}
+- 2: ${c.scoringGuide.two}
+`).join('\n')}
+
+=== VALIDATION RULES ===
+
+1. CLAIM VALIDATION:
+   - Score 2: Claim clearly matches one of the KEY FINDINGS above
+   - Score 1: Claim is related but vague or partially accurate
+   - Score 0: Claim doesn't match article, matches a MISCONCEPTION, or is fabricated
+   - FLAG if claim clearly belongs to a different week's article
+
+2. LIMITATION VALIDATION:
+   - Score 2: Limitation matches CONFOUNDS & LIMITATIONS above AND explains impact
+   - Score 1: Generic limitation (e.g., "small sample") without article-specific reasoning
+   - Score 0: No limitation or irrelevant to this article
+
+3. EVIDENCE VALIDATION:
+   - Score 2: Cites specific numbers/findings that appear in the article
+   - Score 1: General reference to findings without specifics
+   - Score 0: No evidence or fabricated statistics
+
+4. CLINICAL CONNECTION:
+   - Score 2: Specific, actionable insight related to CLINICAL CONNECTION above
+   - Score 1: Generic "clinicians should know this" without specifics
+   - Score 0: No connection or completely irrelevant
+
+${GRADING_GUIDANCE.conversationComparison}
+
+=== FLAGGING CRITERIA ===
+${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
+- WRONG ARTICLE: Student discusses findings from a different week's article
+
+=== YOUR TASK ===
+1. Identify which KEY FINDINGS the student's claim matches (or doesn't)
+2. Check if limitations match the CONFOUNDS & LIMITATIONS list
+3. Verify evidence isn't fabricated
+4. Assess clinical connection quality
+5. Compare conversation to reflection (do they match?)
+6. Flag if article mismatch, AI-generated, or misconception
+
+=== OUTPUT FORMAT ===
+Week: ${weekNumber}
+Article: ${article.title}
+Claim Match: [Which key finding matches, or "No match" / "Misconception"]
+Article Engagement: [0/1/2] — [justification referencing the article]
+Using Evidence: [0/1/2] — [justification]
+Critical Questioning: [0/1/2] — [justification referencing valid limitations]
+Clinical Connection: [0/1/2] — [justification]
+Total: [X]/8
+Flagged: [Yes/No] — [reason if yes]
+Feedback: [One constructive sentence for the student]
+`;
+}
+
+// Base prompt without week-specific content (fallback)
+export const GRADING_SYSTEM_PROMPT_BASE = `You are a grading assistant for SLHS 303 Speech and Hearing Science.
 
 ${GRADING_GUIDANCE.population}
 
@@ -311,6 +412,9 @@ Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
 Feedback: [One constructive sentence for the student]
 `;
+
+// Legacy export for backwards compatibility
+export const GRADING_SYSTEM_PROMPT = GRADING_SYSTEM_PROMPT_BASE;
 
 // ============================================================================
 // WEEK-SPECIFIC GRADING NOTES
