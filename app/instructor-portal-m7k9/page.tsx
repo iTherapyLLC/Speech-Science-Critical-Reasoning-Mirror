@@ -103,27 +103,52 @@ interface ProgressRow {
 
 type TabType = 'overview' | 'roster' | 'submissions' | 'export'
 
-// Rubric descriptions - matches Canvas exactly
+// Rubric descriptions with calibration examples
+// Maps to scientific reasoning template: CLAIM, EVIDENCE, ASSUMPTION+PROBLEM, WHY IT MATTERS+TAKEAWAY
 const RUBRIC = {
   article_engagement: {
     name: 'Article Engagement',
-    description: 'Accurate understanding of research question, methods, findings',
+    templateSection: 'THE CLAIM',
+    description: 'Identifies a specific, accurate claim from the article',
+    scoring: {
+      0: 'Missing, vague, or incorrect claim',
+      1: 'General claim but lacks specificity',
+      2: 'Specific claim with clear X→Y structure',
+    },
   },
   using_evidence: {
     name: 'Using Evidence',
-    description: 'References specific findings, numbers, or details from the article',
+    templateSection: 'THE EVIDENCE',
+    description: 'Cites specific findings, numbers, or data from the article',
+    scoring: {
+      0: 'No evidence or fabricated data',
+      1: 'General reference without specifics',
+      2: 'Specific numbers, percentages, or findings',
+    },
   },
   critical_questioning: {
     name: 'Critical Questioning',
-    description: 'Identifies limitations, confusions, or things worth questioning',
+    templateSection: 'ASSUMPTION + PROBLEM',
+    description: 'Identifies a limitation AND explains why it matters',
+    scoring: {
+      0: 'No limitation or no explanation',
+      1: 'Limitation present but weak explanation',
+      2: 'Clear limitation with thoughtful impact',
+    },
   },
   clinical_connection: {
     name: 'Clinical Connection',
-    description: 'Specific, thoughtful connection to clinical practice',
+    templateSection: 'WHY IT MATTERS + TAKEAWAY',
+    description: 'Connects findings to clinical practice meaningfully',
+    scoring: {
+      0: 'No connection or completely generic',
+      1: 'General connection without specifics',
+      2: 'Specific, actionable clinical implication',
+    },
   },
 }
 
-const SCORE_LABELS = ['Does not meet', 'Approaching', 'Meets']
+const SCORE_LABELS = ['0 - Missing', '1 - Partial', '2 - Complete']
 
 export default function InstructorPortal() {
   // Auth state
@@ -2297,31 +2322,46 @@ export default function InstructorPortal() {
                   <div className="text-3xl font-bold text-teal-600">{totalScore}/8</div>
                 </div>
 
-                {/* Rubric */}
+                {/* Rubric with calibration guidance */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                  {(Object.keys(RUBRIC) as Array<keyof typeof RUBRIC>).map((key) => (
-                    <div key={key}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">{RUBRIC[key].name}</span>
-                        <span className="text-xs text-gray-500">{SCORE_LABELS[grade[key]]}</span>
+                  {(Object.keys(RUBRIC) as Array<keyof typeof RUBRIC>).map((key) => {
+                    const criterion = RUBRIC[key]
+                    const scoring = criterion.scoring as Record<number, string>
+                    return (
+                      <div key={key} className="bg-white rounded-xl p-4 border border-gray-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <div>
+                            <span className="text-sm font-semibold text-gray-800">{criterion.name}</span>
+                            <span className="text-xs text-teal-600 ml-2">({criterion.templateSection})</span>
+                          </div>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {SCORE_LABELS[grade[key]]}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">{criterion.description}</p>
+                        <div className="flex gap-1 mb-2">
+                          {[0, 1, 2].map((score) => (
+                            <button
+                              key={score}
+                              onClick={() => setGrade(g => ({ ...g, [key]: score }))}
+                              title={scoring[score]}
+                              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                grade[key] === score
+                                  ? "bg-teal-600 text-white shadow-sm"
+                                  : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100"
+                              }`}
+                            >
+                              {score}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Show scoring guide for selected score */}
+                        <p className="text-xs text-gray-500 italic">
+                          {scoring[grade[key]]}
+                        </p>
                       </div>
-                      <div className="flex gap-1">
-                        {[0, 1, 2].map((score) => (
-                          <button
-                            key={score}
-                            onClick={() => setGrade(g => ({ ...g, [key]: score }))}
-                            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                              grade[key] === score
-                                ? "bg-teal-600 text-white shadow-sm"
-                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   {/* Notes */}
                   <div className="pt-2">
