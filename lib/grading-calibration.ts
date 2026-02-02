@@ -492,6 +492,341 @@ export const WEEK_GRADING_NOTES: Record<number, {
   // Add more weeks as needed...
 };
 
+// ============================================================================
+// MIDTERM RUBRIC (24 points total) — Covers Acts I–III, Due March 24
+// ============================================================================
+
+export type AssessmentMode = 'weekly' | 'midterm' | 'final';
+
+export interface ExamRubricPart {
+  name: string;
+  maxPoints: number;
+  focus: string;
+  scoringLevels: { points: number; description: string }[];
+  keyConcepts: string[];
+  lookFor: string[];
+}
+
+export const MIDTERM_RUBRIC: ExamRubricPart[] = [
+  {
+    name: "Part 1: Core Concepts",
+    maxPoints: 8,
+    focus: "Definitions, mechanisms, causal chains",
+    scoringLevels: [
+      { points: 8, description: "Accurate definitions; complete causal chains (pressure → vibration → measurement); mechanisms explained" },
+      { points: 6, description: "Mostly accurate; minor gaps in causal chains or definitions" },
+      { points: 4, description: "Partial; definitions present but without mechanisms" },
+      { points: 2, description: "Superficial; vague or incomplete understanding" },
+      { points: 0, description: "Missing or fundamentally wrong" },
+    ],
+    keyConcepts: [
+      "Source-filter theory",
+      "Jitter (timing instability)",
+      "Shimmer (amplitude instability)",
+      "Loudness confound",
+      "CPP (cepstral peak prominence)",
+    ],
+    lookFor: [
+      "Causal chains connecting pressure → vibration → measurement",
+      "Distinction between source and filter contributions",
+      "Understanding that jitter/shimmer are perturbation measures affected by intensity",
+      "Recognition that CPP is more robust than perturbation measures",
+    ],
+  },
+  {
+    name: "Part 2: Interpreting Evidence",
+    maxPoints: 8,
+    focus: "Applying understanding to research",
+    scoringLevels: [
+      { points: 8, description: "Correctly interprets findings; identifies variables; connects to mechanisms; notes limitations" },
+      { points: 6, description: "Good interpretation with minor gaps in variable identification or limitation awareness" },
+      { points: 4, description: "Partial interpretation; misses connections between findings and mechanisms" },
+      { points: 2, description: "Superficial; restates findings without interpretation" },
+      { points: 0, description: "Missing or fundamentally wrong" },
+    ],
+    keyConcepts: [
+      "Identifying independent and dependent variables",
+      "Connecting findings to underlying mechanisms",
+      "Recognizing study limitations",
+    ],
+    lookFor: [
+      "References to specific articles from Acts I–III",
+      "Explains WHY findings occurred, not just WHAT was found",
+      "Acknowledges limitations of cited research",
+      "Connects evidence to broader course themes",
+    ],
+  },
+  {
+    name: "Part 3: Perception Under Noise",
+    maxPoints: 4,
+    focus: "Act II concepts",
+    scoringLevels: [
+      { points: 4, description: "Clear understanding of masking types; context effects; signal clarity" },
+      { points: 3, description: "Good understanding with minor gaps" },
+      { points: 2, description: "Confuses masking types or misattributes effects" },
+      { points: 1, description: "Minimal understanding demonstrated" },
+      { points: 0, description: "Missing or fundamentally wrong" },
+    ],
+    keyConcepts: [
+      "Energetic masking (peripheral, frequency overlap)",
+      "Informational masking (central, cognitive load)",
+      "Context effects on perception",
+      "Signal clarity and degradation",
+    ],
+    lookFor: [
+      "Correct distinction between energetic (peripheral) and informational (central) masking",
+      "Understanding of how context aids perception in noisy environments",
+      "Application to clinical scenarios (e.g., hearing assessment environments)",
+    ],
+  },
+  {
+    name: "Part 4: Reflection",
+    maxPoints: 4,
+    focus: "Growth and remaining questions",
+    scoringLevels: [
+      { points: 4, description: "Specific growth identified; genuine remaining question; connects to course themes" },
+      { points: 3, description: "Good reflection but generic remaining question" },
+      { points: 2, description: "Surface-level 'I learned a lot' without specifics" },
+      { points: 1, description: "Minimal effort" },
+      { points: 0, description: "Missing" },
+    ],
+    keyConcepts: [],
+    lookFor: [
+      "Specific example of conceptual growth (before → after understanding)",
+      "Genuine remaining question showing curiosity",
+      "Connection between personal growth and course content",
+    ],
+  },
+];
+
+// ============================================================================
+// FINAL RUBRIC (24 points total) — Covers All 4 Acts, Due May 14
+// Central Question: "What has to be true for linguistic communication to be worth the energy?"
+// ============================================================================
+
+export const FINAL_RUBRIC: ExamRubricPart[] = [
+  {
+    name: "Part 1: Opening Reflection",
+    maxPoints: 4,
+    focus: "Growth since Week 1",
+    scoringLevels: [
+      { points: 4, description: "Specific Week 1 beliefs identified; clear conceptual shift; genuine growth articulated" },
+      { points: 3, description: "Good reflection but lacks specificity about Week 1 starting point" },
+      { points: 2, description: "Generic 'I learned a lot' without specific before/after" },
+      { points: 1, description: "Minimal effort" },
+      { points: 0, description: "Missing" },
+    ],
+    keyConcepts: [],
+    lookFor: [
+      "Specific reference to what they believed in Week 1",
+      "Clear articulation of how understanding has shifted",
+      "Genuine tone (not performative)",
+    ],
+  },
+  {
+    name: "Part 2: Act Insights (4 Acts × 2 pts)",
+    maxPoints: 8,
+    focus: "One key insight per Act with specific reference",
+    scoringLevels: [
+      { points: 8, description: "All 4 Acts addressed with specific insights and article references; explains why each matters" },
+      { points: 6, description: "3-4 Acts addressed; some insights lack specificity or references" },
+      { points: 4, description: "2-3 Acts addressed; generic insights or missing references" },
+      { points: 2, description: "1-2 Acts addressed; superficial" },
+      { points: 0, description: "Missing or wrong Acts" },
+    ],
+    keyConcepts: [
+      "Act I: jitter/shimmer, loudness confound, CPP, source-filter theory",
+      "Act II: energetic/informational masking, context effects, signal clarity",
+      "Act III: subglottal pressure, Bernoulli effect, voice quality",
+      "Act IV: motor learning, practice effects, articulatory coordination",
+    ],
+    lookFor: [
+      "Per Act: specific insight (not just topic mention)",
+      "Per Act: reference to a specific article or finding",
+      "Per Act: explanation of why that insight matters",
+      "Score 2 per Act if both insight + reference present; 1 if generic or missing reference; 0 if missing or wrong Act",
+    ],
+  },
+  {
+    name: "Part 3: Making Connections",
+    maxPoints: 4,
+    focus: "Cross-Act connections",
+    scoringLevels: [
+      { points: 4, description: "Sophisticated cross-Act connection; specific examples; bidirectional relationship identified" },
+      { points: 3, description: "Good connection but one-directional" },
+      { points: 2, description: "Surface-level connection without specifics" },
+      { points: 1, description: "Unclear or forced connection" },
+      { points: 0, description: "Missing" },
+    ],
+    keyConcepts: [],
+    lookFor: [
+      "Connection spans at least 2 Acts",
+      "Specific examples from each Act used",
+      "Bidirectional reasoning (A affects B AND B affects A)",
+      "Not just 'both are about speech' but actual mechanistic link",
+    ],
+  },
+  {
+    name: "Part 4: Central Question",
+    maxPoints: 4,
+    focus: "What has to be true for linguistic communication to be worth the energy?",
+    scoringLevels: [
+      { points: 4, description: "Synthesizes multiple Acts; specific evidence cited; acknowledges uncertainty" },
+      { points: 3, description: "Good synthesis but limited evidence or no acknowledgment of uncertainty" },
+      { points: 2, description: "Superficial answer; single-perspective" },
+      { points: 1, description: "Single-Act answer without synthesis" },
+      { points: 0, description: "Missing" },
+    ],
+    keyConcepts: [],
+    lookFor: [
+      "Draws on evidence from multiple Acts",
+      "Specific examples supporting their answer",
+      "Acknowledges that some aspects remain uncertain",
+      "Goes beyond 'communication is important' to address energy cost specifically",
+    ],
+  },
+  {
+    name: "Part 5: Looking Forward",
+    maxPoints: 4,
+    focus: "Clinical application and remaining curiosity",
+    scoringLevels: [
+      { points: 4, description: "Specific clinical application identified; genuine remaining question demonstrates curiosity" },
+      { points: 3, description: "One element strong, one weak" },
+      { points: 2, description: "Generic clinical connection and/or generic question" },
+      { points: 1, description: "Minimal" },
+      { points: 0, description: "Missing" },
+    ],
+    keyConcepts: [],
+    lookFor: [
+      "Specific clinical scenario where course knowledge applies",
+      "Genuine remaining question (not 'I wonder what else there is')",
+      "Connection between clinical application and course content",
+    ],
+  },
+];
+
+// ============================================================================
+// EXAM GRADING CALIBRATION PHILOSOPHY
+// ============================================================================
+
+export const EXAM_GRADING_PHILOSOPHY = `
+CALIBRATION PHILOSOPHY FOR EXAM GRADING:
+
+1. START FROM STRENGTHS — Score what they got right before noting gaps.
+2. GENEROUS PARTIAL CREDIT — Reserve 0 only for blank responses or zero effort.
+3. TOOL USAGE COUNTS — If a student references NotebookLM, podcasts, or scaffolding materials, that shows engagement. Count it positively.
+4. INTELLECTUAL CURIOSITY VALUED — A genuinely interesting question or unexpected connection should be rewarded even if imperfect.
+5. COACHING TONE — Feedback should say "To earn full points, try..." not "You failed to..."
+6. RESUBMISSION CONTEXT — Students can resubmit for full credit, so feedback should be actionable and specific.
+7. THE GOAL IS GROWTH, NOT PERFECTION — These are undergraduates learning scientific reasoning for the first time.
+
+SCORING ANCHORS:
+- 20-24 pts (83-100%): Strong understanding demonstrated across all parts
+- 16-19 pts (67-79%): Good understanding with some gaps; actionable feedback given
+- 12-15 pts (50-67%): Partial understanding; significant coaching feedback needed
+- 8-11 pts (33-50%): Minimal engagement; major gaps
+- 0-7 pts (<33%): Missing parts or fundamental misunderstanding
+`;
+
+// ============================================================================
+// EXAM GRADING PROMPT BUILDERS
+// ============================================================================
+
+export function buildMidtermGradingPrompt(): string {
+  return `You are a coaching-oriented grading assistant for the SLHS 303 Midterm Exam.
+
+${GRADING_GUIDANCE.population}
+
+${EXAM_GRADING_PHILOSOPHY}
+
+=== MIDTERM RUBRIC (24 points total) ===
+Covers Acts I–III. Students can resubmit for full credit.
+
+${MIDTERM_RUBRIC.map(part => `
+${part.name} (${part.maxPoints} pts) — Focus: ${part.focus}
+${part.scoringLevels.map(l => `  ${l.points} pts: ${l.description}`).join('\n')}
+${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` : ''}
+Look for: ${part.lookFor.join('; ')}
+`).join('\n')}
+
+=== YOUR TASK ===
+1. Read the student's midterm response carefully
+2. Score each Part according to the rubric above
+3. Start feedback with what they did well
+4. For any points not earned, explain specifically what to add for a resubmission
+5. Use coaching tone: "To earn full points, try..." not "You failed to..."
+6. Note use of tools (NotebookLM, podcasts) positively
+
+=== OUTPUT FORMAT (JSON) ===
+{
+  "mode": "midterm",
+  "parts": [
+    { "name": "Part 1: Core Concepts", "score": X, "maxPoints": 8, "justification": "...", "feedback": "..." },
+    { "name": "Part 2: Interpreting Evidence", "score": X, "maxPoints": 8, "justification": "...", "feedback": "..." },
+    { "name": "Part 3: Perception Under Noise", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
+    { "name": "Part 4: Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." }
+  ],
+  "totalScore": X,
+  "totalPossible": 24,
+  "overallFeedback": "Start with strengths, then coaching for improvement",
+  "flagged": false,
+  "flagReason": ""
+}
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+}
+
+export function buildFinalGradingPrompt(): string {
+  return `You are a coaching-oriented grading assistant for the SLHS 303 Final Exam.
+
+${GRADING_GUIDANCE.population}
+
+${EXAM_GRADING_PHILOSOPHY}
+
+=== FINAL RUBRIC (24 points total) ===
+Covers all 4 Acts. Students can resubmit for full credit.
+Central Question: "What has to be true for linguistic communication to be worth the energy?"
+
+${FINAL_RUBRIC.map(part => `
+${part.name} (${part.maxPoints} pts) — Focus: ${part.focus}
+${part.scoringLevels.map(l => `  ${l.points} pts: ${l.description}`).join('\n')}
+${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` : ''}
+Look for: ${part.lookFor.join('; ')}
+`).join('\n')}
+
+=== YOUR TASK ===
+1. Read the student's final exam response carefully
+2. Score each Part according to the rubric above
+3. For Part 2 (Act Insights), score each Act separately (0-2 pts each) and sum
+4. Start feedback with what they did well
+5. For any points not earned, explain specifically what to add for a resubmission
+6. Use coaching tone: "To earn full points, try..." not "You failed to..."
+7. Note use of tools (NotebookLM, podcasts) positively
+
+=== OUTPUT FORMAT (JSON) ===
+{
+  "mode": "final",
+  "parts": [
+    { "name": "Part 1: Opening Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
+    { "name": "Part 2: Act Insights", "score": X, "maxPoints": 8, "justification": "Act I: X/2 — ...; Act II: X/2 — ...; Act III: X/2 — ...; Act IV: X/2 — ...", "feedback": "..." },
+    { "name": "Part 3: Making Connections", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
+    { "name": "Part 4: Central Question", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
+    { "name": "Part 5: Looking Forward", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." }
+  ],
+  "totalScore": X,
+  "totalPossible": 24,
+  "overallFeedback": "Start with strengths, then coaching for improvement",
+  "flagged": false,
+  "flagReason": ""
+}
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+}
+
+export function buildWeeklyGradingPrompt(weekNumber: number): string {
+  return buildGradingPrompt(weekNumber);
+}
+
 // Helper function to get calibration example by criterion and score
 export function getCalibrationExample(
   criterionName: string,
