@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SLHS 303 - Critical Reasoning Mirror",
-  description: "A Critical Reasoning Mirror tool for Speech and Hearing Science at CSU East Bay",
+  title: "SLHS 303 Grading Assistant",
+  description: "Instructor grading assistant for SLHS 303 Speech and Hearing Science at CSU East Bay",
   generator: "v0.app",
   icons: {
     icon: [
