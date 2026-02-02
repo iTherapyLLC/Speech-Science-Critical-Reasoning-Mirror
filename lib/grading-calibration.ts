@@ -201,7 +201,7 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
       "Reflection is sophisticated but conversation was minimal/thin",
       "Generic phrases like 'In conclusion' or 'It is important to note'",
     ],
-    action: "Compare reflection to conversation transcript. If conversation is thin but reflection is polished, flag for review. NOTE: NotebookLM, podcasts, briefing docs, flashcards, and quizzes are SANCTIONED course tools — mentioning them is POSITIVE, not a flag.",
+    action: "Compare reflection to conversation transcript. If conversation is thin but reflection is polished, flag for review. NOTE: NotebookLM, podcasts, briefing docs, flashcards, and quizzes are SANCTIONED course tools — mentioning them is a bonus, not a flag. NOT mentioning them is also fine.",
   },
   {
     name: "Article Mismatch",
@@ -359,11 +359,11 @@ ${GRADING_GUIDANCE.conversationComparison}
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
 - WRONG ARTICLE: Student discusses findings from a different week's article
 
-SANCTIONED TOOLS (count POSITIVELY — do NOT flag):
+SANCTIONED TOOLS (BONUS, not required — NEVER deduct for absence):
 - NotebookLM, Google NotebookLM podcasts
 - Course briefing documents, flashcards, quizzes
 - Any scaffolding materials provided by the instructor
-If a student mentions using these tools, note it as a STRENGTH showing engagement.
+If a student mentions using these tools, note it as a BONUS showing extra engagement. If they DON'T mention them, that's completely fine — never penalize or deduct for not using scaffolding tools.
 
 === YOUR TASK ===
 1. Identify which KEY FINDINGS the student's claim matches (or doesn't)
@@ -749,7 +749,7 @@ CALIBRATION PHILOSOPHY FOR EXAM GRADING:
 
 1. START FROM STRENGTHS — Score what they got right before noting gaps.
 2. GENEROUS PARTIAL CREDIT — Reserve 0 only for blank responses or zero effort.
-3. TOOL USAGE COUNTS — If a student references NotebookLM, podcasts, or scaffolding materials, that shows engagement. Count it positively.
+3. TOOL USAGE IS A BONUS, NOT A REQUIREMENT — If a student references NotebookLM, podcasts, or scaffolding materials, that shows extra engagement and is worth noting positively. But NOT mentioning these tools is perfectly fine — students demonstrate understanding in many ways. Never deduct points for not using or mentioning scaffolding tools.
 4. INTELLECTUAL CURIOSITY VALUED — A genuinely interesting question or unexpected connection should be rewarded even if imperfect.
 5. COACHING TONE — Feedback should say "To earn full points, try..." not "You failed to..."
 6. RESUBMISSION CONTEXT — Students can resubmit for full credit, so feedback should be actionable and specific.
@@ -796,7 +796,7 @@ If a student mentions using these tools, note it as a STRENGTH.
 3. Start feedback with what they did well
 4. For any points not earned, explain specifically what to add for a resubmission
 5. Use coaching tone: "To earn full points, try..." not "You failed to..."
-6. Note use of tools (NotebookLM, podcasts) positively — this is engagement, not cheating
+6. If a student mentions NotebookLM, podcasts, or scaffolding tools, note it as a bonus — but NEVER deduct for not mentioning them
 7. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
 
 === FEEDBACK FORMAT ===
@@ -853,7 +853,7 @@ If a student mentions using these tools, note it as a STRENGTH.
 4. Start feedback with what they did well
 5. For any points not earned, explain specifically what to add for a resubmission
 6. Use coaching tone: "To earn full points, try..." not "You failed to..."
-7. Note use of tools (NotebookLM, podcasts) positively — this is engagement, not cheating
+7. If a student mentions NotebookLM, podcasts, or scaffolding tools, note it as a bonus — but NEVER deduct for not mentioning them
 8. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
 
 === FEEDBACK FORMAT ===
