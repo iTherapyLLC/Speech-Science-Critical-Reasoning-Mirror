@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         const errorText = await claudeResponse.text();
         console.error(`[${requestId}] Claude API error:`, claudeResponse.status, errorText);
         return NextResponse.json(
-          { error: 'Grading service error. Please try again.', errorCode: 'API_ERROR' },
+          { error: `Grading service error (${claudeResponse.status}). Please try again.`, errorCode: 'API_ERROR', debug: errorText },
           { status: 500 }
         );
       }
