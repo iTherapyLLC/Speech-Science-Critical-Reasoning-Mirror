@@ -247,11 +247,13 @@ CRITICAL CONTEXT ABOUT THESE STUDENTS:
 - They are learning the PROCESS of scientific reasoning
 - We are grading EFFORT and ENGAGEMENT, not expertise
 
-SCORING PHILOSOPHY:
-- If they attempted the scientific reasoning template with genuine effort → 6-8 points
-- If they filled in blanks but answers are thin/generic → 4-6 points
-- If sections are missing or clearly didn't engage → 2-4 points
-- Reserve 0-2 points for non-submissions or obvious cheating
+SCORING PHILOSOPHY — GENEROUS BY DEFAULT:
+- If they attempted the template with genuine effort → 7-8 points (this is the BASELINE for real engagement)
+- If they filled in blanks but answers are thin/generic → 5-6 points
+- If sections are missing or clearly didn't engage → 3-4 points
+- Reserve 0-2 points ONLY for non-submissions or obvious cheating
+- WHEN IN DOUBT, round UP. A 1 that's close to a 2 should be a 2.
+- These students can resubmit for full credit — your job is to coach, not gatekeep.
 `,
 
   conversationComparison: `
@@ -270,15 +272,15 @@ RED FLAGS:
 `,
 
   quickApprove: `
-QUICK APPROVE CRITERIA (6/8 points):
+QUICK APPROVE CRITERIA (7/8 points):
 Use quick approve when:
 - All template sections are filled in
 - No obvious AI generation or fabrication
 - Student engaged with the actual article
 - Limitations are present, even if not deeply analyzed
 
-Quick approve scores: Article Engagement 2, Using Evidence 1, Critical Questioning 1, Clinical Connection 2
-This reflects "honest effort" baseline.
+Quick approve scores: Article Engagement 2, Using Evidence 1, Critical Questioning 2, Clinical Connection 2
+This reflects "honest effort" baseline. Most students who genuinely engage should land at 7-8.
 `,
 };
 
@@ -326,27 +328,27 @@ ${c.name} (${c.templateSection}) — 0/1/2 points
 - 2: ${c.scoringGuide.two}
 `).join('\n')}
 
-=== VALIDATION RULES ===
+=== VALIDATION RULES (GENEROUS — round up when close) ===
 
 1. CLAIM VALIDATION:
-   - Score 2: Claim clearly matches one of the KEY FINDINGS above
-   - Score 1: Claim is related but vague or partially accurate
+   - Score 2: Claim is related to the article's findings — even if paraphrased or not perfectly worded. If they clearly read the article, give the 2.
+   - Score 1: Claim is vague or only tangentially related
    - Score 0: Claim doesn't match article, matches a MISCONCEPTION, or is fabricated
    - FLAG if claim clearly belongs to a different week's article
 
 2. LIMITATION VALIDATION:
-   - Score 2: Limitation matches CONFOUNDS & LIMITATIONS above AND explains impact
-   - Score 1: Generic limitation (e.g., "small sample") without article-specific reasoning
+   - Score 2: Identifies ANY real limitation AND gives some reasoning about why it matters. Does NOT need to match the exact list above — any valid limitation counts.
+   - Score 1: Limitation named but no explanation of impact
    - Score 0: No limitation or irrelevant to this article
 
 3. EVIDENCE VALIDATION:
-   - Score 2: Cites specific numbers/findings that appear in the article
-   - Score 1: General reference to findings without specifics
+   - Score 2: References specific findings, data, or details from the article. Exact numbers are ideal but paraphrased findings count (e.g., "most SLPs reported time barriers" is acceptable even without the exact percentage).
+   - Score 1: Very general reference without any specifics
    - Score 0: No evidence or fabricated statistics
 
 4. CLINICAL CONNECTION:
-   - Score 2: Specific, actionable insight related to CLINICAL CONNECTION above
-   - Score 1: Generic "clinicians should know this" without specifics
+   - Score 2: Connects findings to practice in ANY meaningful way — even forward-looking statements about their own future practice count. Does NOT require a detailed clinical scenario.
+   - Score 1: Connection is completely generic ("clinicians should know this") with zero specifics
    - Score 0: No connection or completely irrelevant
 
 ${GRADING_GUIDANCE.conversationComparison}
