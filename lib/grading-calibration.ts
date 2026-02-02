@@ -192,16 +192,16 @@ export interface FlagCriterion {
 
 export const FLAGGING_CRITERIA: FlagCriterion[] = [
   {
-    name: "AI-Generated Content",
-    description: "Response appears to be written by ChatGPT or similar AI",
+    name: "Unauthorized AI-Generated Content",
+    description: "Response appears to be written by ChatGPT, Gemini, or similar generative AI (NOT NotebookLM — see sanctioned tools below)",
     examples: [
       "Overly polished academic language inconsistent with conversation",
       "Perfect structure with no personality or confusion expressed",
-      "Uses terms or concepts not discussed in the conversation",
+      "Uses terms or concepts not discussed in the conversation OR in course scaffolding materials",
       "Reflection is sophisticated but conversation was minimal/thin",
       "Generic phrases like 'In conclusion' or 'It is important to note'",
     ],
-    action: "Compare reflection to conversation transcript. If conversation is thin but reflection is polished, flag for review.",
+    action: "Compare reflection to conversation transcript. If conversation is thin but reflection is polished, flag for review. NOTE: NotebookLM, podcasts, briefing docs, flashcards, and quizzes are SANCTIONED course tools — mentioning them is POSITIVE, not a flag.",
   },
   {
     name: "Article Mismatch",
@@ -355,25 +355,41 @@ ${GRADING_GUIDANCE.conversationComparison}
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
 - WRONG ARTICLE: Student discusses findings from a different week's article
 
+SANCTIONED TOOLS (count POSITIVELY — do NOT flag):
+- NotebookLM, Google NotebookLM podcasts
+- Course briefing documents, flashcards, quizzes
+- Any scaffolding materials provided by the instructor
+If a student mentions using these tools, note it as a STRENGTH showing engagement.
+
 === YOUR TASK ===
 1. Identify which KEY FINDINGS the student's claim matches (or doesn't)
 2. Check if limitations match the CONFOUNDS & LIMITATIONS list
 3. Verify evidence isn't fabricated
 4. Assess clinical connection quality
 5. Compare conversation to reflection (do they match?)
-6. Flag if article mismatch, AI-generated, or misconception
+6. Flag ONLY if: article mismatch, unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), or misconception
 
 === OUTPUT FORMAT ===
+Use this EXACT format. For each criterion, provide scaffolded feedback that tells the student what they earned and what to do for full credit.
+
 Week: ${weekNumber}
 Article: ${article.title}
 Claim Match: [Which key finding matches, or "No match" / "Misconception"]
-Article Engagement: [0/1/2] — [justification referencing the article]
-Using Evidence: [0/1/2] — [justification]
-Critical Questioning: [0/1/2] — [justification referencing valid limitations]
-Clinical Connection: [0/1/2] — [justification]
+
+Article Engagement: [0/1/2]
+You earned [X]/2 on Article Engagement. [If 2: brief praise for what they did well. If <2: "To earn full points: [specific action — e.g., 'Identify a specific cause-and-effect claim like X causes Y, rather than describing the general topic.']"]
+
+Using Evidence: [0/1/2]
+You earned [X]/2 on Using Evidence. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Cite a specific number or statistic from the article, such as a percentage or p-value.']"]
+
+Critical Questioning: [0/1/2]
+You earned [X]/2 on Critical Questioning. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Name a specific assumption AND explain how it could change the conclusion.']"]
+
+Clinical Connection: [0/1/2]
+You earned [X]/2 on Clinical Connection. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Describe a specific clinical scenario where this finding would change what you do.']"]
+
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
-Feedback: [One constructive sentence for the student]
 `;
 }
 
@@ -395,22 +411,35 @@ ${GRADING_GUIDANCE.conversationComparison}
 FLAGGING CRITERIA:
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
 
+SANCTIONED TOOLS (count POSITIVELY — do NOT flag):
+- NotebookLM, Google NotebookLM podcasts
+- Course briefing documents, flashcards, quizzes
+- Any scaffolding materials provided by the instructor
+
 YOUR TASK:
 1. Read the student's conversation transcript (their work)
 2. Read their reflection (their summary)
 3. Compare them — do they match in substance and sophistication?
-4. Score each criterion (0/1/2) with brief justification
-5. Flag if any flagging criteria are met
+4. Score each criterion (0/1/2) with scaffolded feedback
+5. Flag ONLY if: unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), article mismatch, or fabrication
 
 OUTPUT FORMAT:
 Week: [number]
-Article Engagement: [0/1/2] — [one sentence justification]
-Using Evidence: [0/1/2] — [one sentence justification]
-Critical Questioning: [0/1/2] — [one sentence justification]
-Clinical Connection: [0/1/2] — [one sentence justification]
+
+Article Engagement: [0/1/2]
+You earned [X]/2 on Article Engagement. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+
+Using Evidence: [0/1/2]
+You earned [X]/2 on Using Evidence. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+
+Critical Questioning: [0/1/2]
+You earned [X]/2 on Critical Questioning. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+
+Clinical Connection: [0/1/2]
+You earned [X]/2 on Clinical Connection. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
-Feedback: [One constructive sentence for the student]
 `;
 
 // Legacy export for backwards compatibility
@@ -749,22 +778,33 @@ ${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` :
 Look for: ${part.lookFor.join('; ')}
 `).join('\n')}
 
+=== SANCTIONED TOOLS (count POSITIVELY — do NOT flag) ===
+- NotebookLM, Google NotebookLM podcasts
+- Course briefing documents, flashcards, quizzes
+- Any scaffolding materials provided by the instructor
+If a student mentions using these tools, note it as a STRENGTH.
+
 === YOUR TASK ===
 1. Read the student's midterm response carefully
 2. Score each Part according to the rubric above
 3. Start feedback with what they did well
 4. For any points not earned, explain specifically what to add for a resubmission
 5. Use coaching tone: "To earn full points, try..." not "You failed to..."
-6. Note use of tools (NotebookLM, podcasts) positively
+6. Note use of tools (NotebookLM, podcasts) positively — this is engagement, not cheating
+7. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
+
+=== FEEDBACK FORMAT ===
+Each part's "feedback" field MUST use this scaffolded format:
+"You earned X/Y on [Part Name]. [If full points: brief praise for what they did well.] [If less than full: 'To earn full points: [specific action they can take for resubmission].']"
 
 === OUTPUT FORMAT (JSON) ===
 {
   "mode": "midterm",
   "parts": [
-    { "name": "Part 1: Core Concepts", "score": X, "maxPoints": 8, "justification": "...", "feedback": "..." },
-    { "name": "Part 2: Interpreting Evidence", "score": X, "maxPoints": 8, "justification": "...", "feedback": "..." },
-    { "name": "Part 3: Perception Under Noise", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
-    { "name": "Part 4: Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." }
+    { "name": "Part 1: Core Concepts", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Core Concepts. To earn full points: [specific action]." },
+    { "name": "Part 2: Interpreting Evidence", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Interpreting Evidence. To earn full points: [specific action]." },
+    { "name": "Part 3: Perception Under Noise", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Perception Under Noise. To earn full points: [specific action]." },
+    { "name": "Part 4: Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Reflection. To earn full points: [specific action]." }
   ],
   "totalScore": X,
   "totalPossible": 24,
@@ -794,6 +834,12 @@ ${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` :
 Look for: ${part.lookFor.join('; ')}
 `).join('\n')}
 
+=== SANCTIONED TOOLS (count POSITIVELY — do NOT flag) ===
+- NotebookLM, Google NotebookLM podcasts
+- Course briefing documents, flashcards, quizzes
+- Any scaffolding materials provided by the instructor
+If a student mentions using these tools, note it as a STRENGTH.
+
 === YOUR TASK ===
 1. Read the student's final exam response carefully
 2. Score each Part according to the rubric above
@@ -801,17 +847,22 @@ Look for: ${part.lookFor.join('; ')}
 4. Start feedback with what they did well
 5. For any points not earned, explain specifically what to add for a resubmission
 6. Use coaching tone: "To earn full points, try..." not "You failed to..."
-7. Note use of tools (NotebookLM, podcasts) positively
+7. Note use of tools (NotebookLM, podcasts) positively — this is engagement, not cheating
+8. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
+
+=== FEEDBACK FORMAT ===
+Each part's "feedback" field MUST use this scaffolded format:
+"You earned X/Y on [Part Name]. [If full points: brief praise for what they did well.] [If less than full: 'To earn full points: [specific action they can take for resubmission].']"
 
 === OUTPUT FORMAT (JSON) ===
 {
   "mode": "final",
   "parts": [
-    { "name": "Part 1: Opening Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
-    { "name": "Part 2: Act Insights", "score": X, "maxPoints": 8, "justification": "Act I: X/2 — ...; Act II: X/2 — ...; Act III: X/2 — ...; Act IV: X/2 — ...", "feedback": "..." },
-    { "name": "Part 3: Making Connections", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
-    { "name": "Part 4: Central Question", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." },
-    { "name": "Part 5: Looking Forward", "score": X, "maxPoints": 4, "justification": "...", "feedback": "..." }
+    { "name": "Part 1: Opening Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Opening Reflection. To earn full points: [specific action]." },
+    { "name": "Part 2: Act Insights", "score": X, "maxPoints": 8, "justification": "Act I: X/2 — ...; Act II: X/2 — ...; Act III: X/2 — ...; Act IV: X/2 — ...", "feedback": "You earned X/8 on Act Insights. To earn full points: [specific action per Act that needs improvement]." },
+    { "name": "Part 3: Making Connections", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Making Connections. To earn full points: [specific action]." },
+    { "name": "Part 4: Central Question", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Central Question. To earn full points: [specific action]." },
+    { "name": "Part 5: Looking Forward", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Looking Forward. To earn full points: [specific action]." }
   ],
   "totalScore": X,
   "totalPossible": 24,
