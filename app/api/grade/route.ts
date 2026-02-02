@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-opus-4-5-20250514',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 4096,
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         const errorText = await claudeResponse.text();
         console.error(`[${requestId}] Claude API error:`, claudeResponse.status, errorText);
         return NextResponse.json(
-          { error: `Grading service error (${claudeResponse.status}). Please try again.`, errorCode: 'API_ERROR', debug: errorText },
+          { error: 'Grading service error. Please try again.', errorCode: 'API_ERROR' },
           { status: 500 }
         );
       }
@@ -184,7 +184,7 @@ export async function GET() {
   return NextResponse.json({
     status: 'SLHS 303 Grade API is running',
     version: '1.0 — Weekly + Midterm + Final grading',
-    model: 'claude-opus-4-5-20250514',
+    model: 'claude-sonnet-4-20250514',
     modes: ['weekly', 'midterm', 'final'],
   });
 }

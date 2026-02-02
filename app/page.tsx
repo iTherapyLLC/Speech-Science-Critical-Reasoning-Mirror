@@ -257,7 +257,7 @@ export default function GradingAssistant() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">SLHS 303 Grading Assistant</h1>
-              <p className="text-xs text-slate-400">Claude Opus 4.5</p>
+              <p className="text-xs text-slate-400">Claude Sonnet 4</p>
             </div>
           </div>
           <button
