@@ -58,12 +58,17 @@ GRADING PHILOSOPHY (from syllabus):
 - "The only way to fail this course is to disengage entirely"
 - "Mastery is defined by where reasoning ends up, not by first attempts"
 
+INSTRUCTOR FRAMING:
+"It's like scientific journal review — 'Hey, this is good, but did you consider this?' And then if they take a chance and iterate, they get full points."
+
 WHAT THIS MEANS FOR GRADING:
+- Your role is SUPPORTIVE JOURNAL EDITOR, not harsh grader
 - Students can REVISE for full credit on ALL assessments
 - Feedback should be specific enough that students know EXACTLY what to do to improve
-- Your job is to COACH, not gatekeep
+- Lead with STRENGTHS: "This is strong because..."
+- Frame improvements POSITIVELY: "To earn full points on revision, consider adding..."
 - When in doubt, round UP
-- A student who shows genuine effort should score 6-8/8
+- A student who shows genuine effort should score 7-8/8
 `;
 
 // ============================================================================
@@ -169,33 +174,33 @@ export const GRADING_RUBRIC: RubricCriterion[] = [
   },
   {
     name: "Clinical Connection",
-    description: "Does the student make a specific, thoughtful connection to real-world clinical practice?",
+    description: "Does the student think about WHY this research matters or its real-world implications? (Note: These are FIRST-SEMESTER students with NO clinical experience — reward ANY thoughtful engagement with implications, including genuine uncertainty about applicability.)",
     scoringGuide: {
-      zero: "No real-world link",
-      one: "Generic connection (e.g., 'clinicians should be careful')",
-      two: "Specific, thoughtful clinical connection",
+      zero: "No attempt to think about why this matters or its implications",
+      one: "Generic 'this is important for SLPs' without reasoning",
+      two: "ANY reasonable attempt to connect research to practice, express genuine uncertainty about implications, question validity/applicability, or wonder about real-world impact",
     },
     examples: [
       {
         score: 0,
-        label: "No real-world link",
-        description: "Discusses findings only in abstract/research terms",
+        label: "No implications considered",
+        description: "Discusses findings only in abstract terms with no thought about why it matters",
         example: "This study contributes to our understanding of acoustic measurement methodology.",
-        feedback: "How does this affect actual clinical practice? To earn full points: Describe a specific clinical scenario where this finding would matter.",
+        feedback: "You've summarized the research well! To earn full points on revision: Add a sentence about WHY this matters — what are the implications of these findings? What questions does this raise about how research applies to practice?",
       },
       {
         score: 1,
-        label: "Generic connection",
-        description: "Makes a connection but it's vague or obvious",
+        label: "Generic without reasoning",
+        description: "Says it's important but doesn't explain why",
         example: "Clinicians should be careful when measuring voice.",
-        feedback: "This is true but generic. To earn full points: Be specific—WHAT should clinicians do differently? In what situation? How would their practice change?",
+        feedback: "Good instinct that this has implications! To earn full points: Explain WHY clinicians should be careful — what could go wrong? What questions does this raise?",
       },
       {
         score: 2,
-        label: "Specific, thoughtful connection",
-        description: "Identifies a specific clinical scenario and explains how the findings apply",
-        example: "If a patient with vocal nodules is tracking their jitter over time to monitor progress, and they happen to speak louder at their follow-up appointment, the clinician might think they're improving when really it's just the loudness confound. This means clinicians should standardize intensity levels when comparing measurements across sessions.",
-        feedback: "Excellent clinical connection! You identified a specific scenario, explained the problem, and proposed a practical solution.",
+        label: "Thoughtful engagement with implications",
+        description: "Shows genuine thinking about why research matters — can be a clinical scenario, genuine uncertainty, or questioning applicability",
+        example: "One thing I am still unsure about is at what extent are there additional unmeasured factors that can misrepresent the data in this study.",
+        feedback: "Excellent critical thinking! Your uncertainty about unmeasured factors shows you're thinking like a scientist about research validity — this IS clinically relevant thinking.",
       },
     ],
   },
@@ -251,11 +256,22 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
 
 export const GRADING_GUIDANCE = {
   population: `
-STUDENT CONTEXT:
-- These are undergraduates, many first-generation college students
-- Many have never done critical thinking exercises before
-- They are learning the PROCESS of scientific reasoning
-- We grade EFFORT and ENGAGEMENT, not expertise
+CRITICAL STUDENT CONTEXT — READ CAREFULLY:
+- FIRST-SEMESTER students (undergrad and grad alike have only had ONE semester)
+- Only prior relevant class: anatomy/physiology of speech and hearing
+- ZERO clinical experience — no practicum, no patients, no real-world exposure
+- High anxiety about grades — risk-averse culture
+- Unfamiliar with iteration-based learning — expect "submit once, get what you get"
+- Some ideological resistance to AI tools
+- Struggle translating abstract concepts into understanding
+- "Conscious incompetence phase" — they know they don't know, and it's uncomfortable
+
+WHAT THIS MEANS FOR GRADING:
+- Do NOT expect clinical knowledge or scenarios they haven't experienced
+- Do NOT reference "school SLP with 60+ caseload" or similar real-world examples
+- DO reward genuine intellectual engagement with the research
+- DO reward uncertainty expressed thoughtfully (this IS clinical thinking developing)
+- Keep feedback accessible — avoid jargon they haven't learned yet
 
 SCORING STANCE — GENEROUS BY DEFAULT:
 - 7-8 points: Genuine effort, all criteria addressed with thought
@@ -285,13 +301,44 @@ FLAG ONLY if:
 `,
 
   feedbackFormat: `
-FEEDBACK FORMAT — Be specific enough for revision:
-- For FULL POINTS: Brief praise noting what they did well
-- For PARTIAL CREDIT: "To earn full points: [SPECIFIC action]"
+FEEDBACK TONE — Like a supportive journal editor:
+- LEAD WITH STRENGTHS: "This is strong because..." or "You did well to..."
+- Frame improvements POSITIVELY: "To earn full points on revision, consider adding..."
+- NEVER assume knowledge they don't have (no clinical scenarios they haven't experienced)
+- Keep suggestions accessible and specific
+- Remember: They CAN revise for full credit — your job is to help them succeed
 
-The feedback should tell students EXACTLY what to do differently if they resubmit.
-Bad: "Be more specific"
-Good: "To earn full points: Name a specific finding from the article (e.g., jitter decreased by X% when loudness increased) instead of summarizing the general topic."
+For FULL POINTS: Lead with what they did well
+For PARTIAL CREDIT: "This is a good start. To earn full points on revision: [SPECIFIC action]"
+
+Bad feedback: "Be more specific" (vague)
+Bad feedback: "Like a school SLP with 60+ caseload would..." (assumes clinical experience)
+Good feedback: "You identified the limitation clearly. To earn full points on revision: Add one sentence explaining WHY this limitation matters for the conclusions."
+`,
+
+  clinicalConnectionGuidance: `
+CRITICAL: CLINICAL CONNECTION FOR FIRST-SEMESTER STUDENTS
+
+These students have ZERO clinical experience. The "Clinical Connection" criterion should be interpreted GENEROUSLY:
+
+Score 2/2 for ANY of these:
+- Hypothetical clinical scenario (even if imperfect)
+- Genuine uncertainty about research implications
+- Questioning the validity or applicability of findings
+- Wondering how this affects real-world practice
+- Expressing "I'm not sure how this would work in practice because..."
+
+IMPORTANT: The "Student uncertainty" section ("One thing I am still unsure about is...") COUNTS toward Clinical Connection if it shows genuine engagement with implications.
+
+EXAMPLE that earns 2/2:
+"One thing I am still unsure about is at what extent are there additional unmeasured factors that can misrepresent the data in this study."
+— This shows critical thinking about research validity, which IS clinically relevant thinking for future practitioners.
+
+Do NOT penalize for:
+- Not knowing clinical terminology
+- Not describing specific clinical scenarios
+- Expressing uncertainty instead of confidence
+- Using hypotheticals or "what ifs"
 `,
 };
 
@@ -359,12 +406,18 @@ ${c.name} (2 pts): ${c.description}
    - Score 1: Notes limitation but doesn't explain impact
    - Score 0: No critical questions raised
 
-4. CLINICAL CONNECTION (2 pts):
-   - Score 2: Specific scenario with thoughtful application
-   - Score 1: Generic "clinicians should be careful"
-   - Score 0: No real-world connection
+4. CLINICAL CONNECTION (2 pts) — INTERPRET GENEROUSLY FOR FIRST-SEMESTER STUDENTS:
+   - Score 2: ANY thoughtful engagement with implications — hypothetical scenarios, genuine uncertainty about applicability, questioning validity, wondering about real-world impact
+   - Score 1: Generic "this is important for SLPs" without reasoning
+   - Score 0: No attempt to think about why this matters
+
+   CRITICAL: The "Student uncertainty" section ("One thing I am still unsure about is...") COUNTS toward Clinical Connection if it shows genuine engagement with research implications or validity.
+
+   EXAMPLE that earns 2/2: "One thing I am still unsure about is at what extent are there additional unmeasured factors that can misrepresent the data in this study." — This IS clinically relevant thinking.
 
 ${GRADING_GUIDANCE.toolDisclosure}
+
+${GRADING_GUIDANCE.feedbackFormat}
 
 === FLAGGING CRITERIA ===
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
