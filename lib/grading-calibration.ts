@@ -2,13 +2,22 @@
  * SLHS 303 Grading Calibration Examples
  *
  * This file contains calibrated examples for each rubric criterion at each score level (0, 1, 2).
- * Use these to maintain consistency when grading student reflections.
+ * Use these to maintain consistency when grading student submissions.
  *
- * RUBRIC (8 points total, 4 criteria × 2 points each):
- * 1. Article Engagement (THE CLAIM) — Did they identify a specific claim from the article?
- * 2. Using Evidence (THE EVIDENCE) — Did they cite specific findings, numbers, or data?
- * 3. Critical Questioning (ASSUMPTION + PROBLEM) — Did they identify a limitation and explain why it matters?
- * 4. Clinical Connection (WHY IT MATTERS + TAKEAWAY) — Did they connect to clinical practice?
+ * WEEKLY RUBRIC (8 points total, 4 criteria × 2 points each):
+ * 1. The Claim — Did they identify a specific claim from the article? (X causes Y)
+ * 2. The Limitation — Did they identify a limitation AND explain why it matters?
+ * 3. My Question — Did they identify a useful follow-up question AND what they learned?
+ * 4. Student Uncertainty — Did they express genuine uncertainty with reasoning?
+ *
+ * SUBMISSION FORMAT (120-150 words):
+ * - This article claims that ___.
+ * - One limitation is ___, which matters because ___.
+ * - The follow-up question I found most useful was ___, and what I learned was ___.
+ * - One thing I am still unsure about is ___, because ___.
+ *
+ * Students may disclose tool usage (NotebookLM, LLMs, etc.) and provide citations.
+ * Tool disclosure is noted but grading focuses on whether content meets rubric standards.
  */
 
 import {
@@ -46,8 +55,8 @@ export interface RubricCriterion {
 
 export const GRADING_RUBRIC: RubricCriterion[] = [
   {
-    name: "Article Engagement",
-    templateSection: "THE CLAIM",
+    name: "The Claim",
+    templateSection: "This article claims that ___",
     description: "Did the student identify a specific, accurate claim from the article?",
     scoringGuide: {
       zero: "Missing, vague, or incorrect claim. Example: 'The article was about voice.'",
@@ -59,121 +68,121 @@ export const GRADING_RUBRIC: RubricCriterion[] = [
         score: 0,
         label: "Missing/Incorrect",
         description: "No claim identified or completely wrong",
-        example: "THE CLAIM: The article was about voice quality and how it's measured in clinics.",
+        example: "This article claims that voice quality is important in clinics.",
         feedback: "This describes the topic, not a specific claim. A claim states that X causes Y or X is related to Y.",
       },
       {
         score: 1,
         label: "Vague/General",
         description: "Claim present but not specific",
-        example: "THE CLAIM: The article claims that different factors can affect voice measurements.",
+        example: "This article claims that different factors can affect voice measurements.",
         feedback: "This is too general. Which factors? Affect measurements how? Be specific about what the researchers found.",
       },
       {
         score: 2,
         label: "Specific/Accurate",
         description: "Clear, specific claim with X→Y structure",
-        example: "THE CLAIM: The article claims that jitter and shimmer values decrease (appear 'better') when participants speak at louder intensities, even though their actual voice health didn't change.",
+        example: "This article claims that jitter and shimmer values decrease (appear 'better') when participants speak at louder intensities, even though their actual voice health didn't change.",
         feedback: "Excellent! This is specific, accurate, and captures the key finding.",
       },
     ],
   },
   {
-    name: "Using Evidence",
-    templateSection: "THE EVIDENCE (from conversation Q3)",
-    description: "Did the student cite specific findings, numbers, or data from the article?",
-    scoringGuide: {
-      zero: "No evidence cited, or evidence is fabricated/incorrect.",
-      one: "General reference to findings without specific numbers or data.",
-      two: "Specific numbers, percentages, or statistical findings accurately cited.",
-    },
-    examples: [
-      {
-        score: 0,
-        label: "Missing/Fabricated",
-        description: "No evidence or made-up numbers",
-        example: "The researchers found that this was true in their study.",
-        feedback: "No specific evidence cited. What did they actually find? What were the numbers?",
-      },
-      {
-        score: 1,
-        label: "General Reference",
-        description: "Evidence mentioned but not specific",
-        example: "The study showed that most SLPs don't use research regularly, and there were barriers to evidence-based practice.",
-        feedback: "Good start, but how many SLPs? What percentage? What were the main barriers?",
-      },
-      {
-        score: 2,
-        label: "Specific Data",
-        description: "Concrete numbers, percentages, or findings",
-        example: "The study found that training predicted EBP use (p < .05), but only explained 17% of the variance. The top barriers were time constraints (78%) and difficulty accessing research (62%).",
-        feedback: "Excellent! Specific numbers that demonstrate engagement with the actual data.",
-      },
-    ],
-  },
-  {
-    name: "Critical Questioning",
-    templateSection: "THE ASSUMPTION + THE PROBLEM",
-    description: "Did the student identify a limitation/assumption AND explain why it matters?",
+    name: "The Limitation",
+    templateSection: "One limitation is ___, which matters because ___",
+    description: "Did the student identify a limitation AND explain why it matters for the findings?",
     scoringGuide: {
       zero: "No limitation identified, or limitation without explanation of why it matters.",
       one: "Limitation identified but explanation is weak or missing.",
-      two: "Clear limitation with thoughtful explanation of its implications.",
+      two: "Clear limitation with thoughtful explanation of its implications for the findings.",
     },
     examples: [
       {
         score: 0,
         label: "Missing/No Explanation",
         description: "No limitation or just 'small sample size' with nothing else",
-        example: "THE ASSUMPTION: The study assumed things were accurate. THE PROBLEM: The sample size was small.",
-        feedback: "This is too vague. What specific assumption? Why does sample size matter for THIS study?",
+        example: "One limitation is the sample size was small.",
+        feedback: "This is too vague. Why does sample size matter for THIS study? How does it affect what we can conclude?",
       },
       {
         score: 1,
         label: "Limitation Without Impact",
         description: "Identifies issue but doesn't explain why it matters",
-        example: "THE ASSUMPTION: They assumed participants answered honestly about their practices. THE PROBLEM: People might not tell the truth on surveys.",
-        feedback: "Good identification! But why does this matter? How would dishonest answers affect the conclusions?",
+        example: "One limitation is they assumed participants answered honestly, which matters because people might not tell the truth.",
+        feedback: "Good identification! But be more specific: how would dishonest answers affect the specific conclusions of this study?",
       },
       {
         score: 2,
         label: "Limitation + Clear Impact",
         description: "Clear limitation with explanation of implications",
-        example: "THE ASSUMPTION: They assumed clinicians answered honestly about using research. THE PROBLEM: But what if clinicians said they use research to look good, when they actually don't? That would mean the real barriers are even bigger than the study found, and we might be overestimating how much EBP actually happens.",
-        feedback: "Excellent! Clear assumption, specific problem, and thoughtful explanation of why it matters.",
+        example: "One limitation is the self-selected sample (95% ASHA members), which matters because these are likely more engaged professionals who already value research, so the real barriers for less-engaged SLPs might be even bigger than reported.",
+        feedback: "Excellent! Clear limitation, specific to this study, and thoughtful explanation of how it affects the conclusions.",
       },
     ],
   },
   {
-    name: "Clinical Connection",
-    templateSection: "WHY IT MATTERS + MY TAKEAWAY",
-    description: "Did the student connect findings to clinical practice in a meaningful way?",
+    name: "My Question",
+    templateSection: "The follow-up question I found most useful was ___, and what I learned was ___",
+    description: "Did the student identify a useful follow-up question AND what they learned from exploring it?",
     scoringGuide: {
-      zero: "No clinical connection, or connection is generic/irrelevant.",
-      one: "General connection to practice without specifics.",
-      two: "Specific, thoughtful connection showing how findings would affect clinical decisions.",
+      zero: "No question identified, or question with no learning outcome.",
+      one: "Question present but learning outcome is vague or generic.",
+      two: "Specific, relevant question with clear learning outcome from the article.",
     },
     examples: [
       {
         score: 0,
-        label: "Missing/Generic",
-        description: "No connection or completely generic",
-        example: "WHY IT MATTERS: This is important for clinicians to know. MY TAKEAWAY: Clinicians should be aware of this.",
-        feedback: "This could apply to any article. How specifically would this affect what a clinician does?",
+        label: "Missing/No Learning",
+        description: "No question or question with nothing learned",
+        example: "The follow-up question I found most useful was why this matters, and I learned that it does matter.",
+        feedback: "This is circular. What specific question did you explore? What specific new understanding did you gain?",
       },
       {
         score: 1,
-        label: "General Connection",
-        description: "Relevant but not specific to the findings",
-        example: "WHY IT MATTERS: Clinicians need to know about measurement issues. MY TAKEAWAY: I would be careful when measuring voices.",
-        feedback: "On the right track, but how specifically? What would you do differently?",
+        label: "Question Without Depth",
+        description: "Question present but learning is vague",
+        example: "The follow-up question I found most useful was how this affects clinicians, and I learned that clinicians should be careful.",
+        feedback: "Good question! But what specifically did you learn about how it affects clinicians? Be more concrete.",
       },
       {
         score: 2,
-        label: "Specific Application",
-        description: "Clear, actionable clinical implication",
-        example: "WHY IT MATTERS: If a patient speaks quietly during the first assessment and louder during a follow-up, their jitter/shimmer might look 'improved' even if their voice didn't actually get better. MY TAKEAWAY: I would control for loudness by using a sound level meter and having patients match a target intensity, so I can trust that any changes I see are real improvements.",
-        feedback: "Excellent! Specific scenario, clear problem, and actionable solution.",
+        label: "Question + Clear Learning",
+        description: "Specific question with concrete learning outcome",
+        example: "The follow-up question I found most useful was 'what would make this study stronger?' and I learned that using a random sample instead of self-selected respondents and adding objective measures of EBP use (not just self-report) would give more trustworthy results.",
+        feedback: "Excellent! Clear question and specific, actionable learning that shows deeper engagement with the research.",
+      },
+    ],
+  },
+  {
+    name: "Student Uncertainty",
+    templateSection: "One thing I am still unsure about is ___, because ___",
+    description: "Did the student express genuine uncertainty with reasoning about why?",
+    scoringGuide: {
+      zero: "No uncertainty expressed, or fake/performative uncertainty.",
+      one: "Uncertainty expressed but reasoning is weak or missing.",
+      two: "Genuine uncertainty with thoughtful reasoning about why it remains unclear.",
+    },
+    examples: [
+      {
+        score: 0,
+        label: "Missing/Fake",
+        description: "No uncertainty or obviously performative",
+        example: "One thing I am still unsure about is everything, because this is complicated.",
+        feedback: "This isn't genuine uncertainty. What specific aspect remains unclear to you after reading the article?",
+      },
+      {
+        score: 1,
+        label: "Uncertainty Without Reasoning",
+        description: "Uncertainty present but reasoning is weak",
+        example: "One thing I am still unsure about is how this applies to real clinics, because I haven't worked in one yet.",
+        feedback: "This is a reasonable uncertainty, but the reasoning is about your experience, not about the article. What in the article itself leaves this unclear?",
+      },
+      {
+        score: 2,
+        label: "Genuine + Reasoned",
+        description: "Authentic uncertainty with thoughtful reasoning",
+        example: "One thing I am still unsure about is whether training alone can overcome systemic barriers like high caseloads, because the study showed training only explained 17% of the variance in EBP use, which means 83% is explained by other factors they didn't fully identify.",
+        feedback: "Excellent! This shows you understood the findings AND can identify where the evidence leaves questions unanswered.",
       },
     ],
   },
@@ -192,18 +201,6 @@ export interface FlagCriterion {
 
 export const FLAGGING_CRITERIA: FlagCriterion[] = [
   {
-    name: "Unauthorized AI-Generated Content",
-    description: "Response appears to be written by ChatGPT, Gemini, or similar generative AI (NOT NotebookLM — see sanctioned tools below)",
-    examples: [
-      "Overly polished academic language inconsistent with conversation",
-      "Perfect structure with no personality or confusion expressed",
-      "Uses terms or concepts not discussed in the conversation OR in course scaffolding materials",
-      "Reflection is sophisticated but conversation was minimal/thin",
-      "Generic phrases like 'In conclusion' or 'It is important to note'",
-    ],
-    action: "Compare reflection to conversation transcript. If conversation is thin but reflection is polished, flag for review. NOTE: NotebookLM, podcasts, briefing docs, flashcards, and quizzes are SANCTIONED course tools — mentioning them is a bonus, not a flag. NOT mentioning them is also fine.",
-  },
-  {
     name: "Article Mismatch",
     description: "Response discusses wrong article or fabricated findings",
     examples: [
@@ -211,14 +208,24 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
       "Cites findings not present in the article",
       "Discusses completely different topic than assigned",
     ],
-    action: "Verify claims against article. If fabricated or wrong article, flag and assign 0 for Article Engagement.",
+    action: "Verify claims against article. If fabricated or wrong article, flag and assign 0 for The Claim.",
+  },
+  {
+    name: "Fabricated Content",
+    description: "Response contains made-up statistics or findings",
+    examples: [
+      "Cites specific percentages or p-values not in the article",
+      "Describes methodology or sample that doesn't match",
+      "Invents author names or study details",
+    ],
+    action: "Flag for review. Score based on what IS accurate, but note the fabrication.",
   },
   {
     name: "Word Count Violation",
-    description: "Response significantly under or over word count",
+    description: "Response significantly under or over word count (target: 120-150 words)",
     examples: [
       "Under 80 words (significantly incomplete)",
-      "Over 200 words (didn't follow instructions)",
+      "Over 250 words (didn't follow instructions)",
     ],
     action: "Note in feedback but don't automatically penalize if content is good. Significant under-count usually means missing criteria.",
   },
@@ -230,7 +237,7 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
       "Confuses the variables (says X causes Y when article says Y causes X)",
       "Misinterprets correlation as causation when article explicitly didn't",
     ],
-    action: "If misunderstanding affects multiple criteria, address in feedback and consider whether it's a teaching moment vs. a red flag.",
+    action: "Address in feedback as a teaching moment. This is NOT automatic zero — grade what they got right.",
   },
 ];
 
@@ -256,30 +263,35 @@ SCORING PHILOSOPHY — GENEROUS BY DEFAULT:
 - These students can resubmit for full credit — your job is to coach, not gatekeep.
 `,
 
-  conversationComparison: `
-THE CONVERSATION IS THE WORK. THE REFLECTION IS THE SUMMARY.
+  toolDisclosure: `
+TOOL USAGE AND CITATIONS:
+Students may disclose using tools (NotebookLM, LLMs, etc.) and provide citations.
+- Tool disclosure is NOTED but does not affect scoring
+- Grading focuses on whether the CONTENT meets rubric standards
+- A well-written response using NotebookLM gets the same score as one without
+- A poorly-written response claiming no tools gets the same score as one with tools
+- The question is always: Does this submission demonstrate understanding?
 
-When grading:
-1. Read the conversation FIRST (this is their actual thinking)
-2. Read the reflection (this should summarize the conversation)
-3. Do they match in substance and sophistication?
+SANCTIONED TOOLS (do NOT flag):
+- NotebookLM, Google NotebookLM podcasts, briefing docs, flashcards, quizzes
+- Course scaffolding materials provided by the instructor
+- LLMs used for learning (not for writing the submission)
 
-RED FLAGS:
-- Thin conversation + polished reflection = likely AI assistance
-- Good conversation + thin reflection = penalize reflection only, not conversation
-- Both thin = low engagement, grade accordingly
-- Both substantive = good faith effort, grade generously
+FLAG ONLY if the submission:
+- Discusses wrong article content
+- Contains fabricated statistics or findings
+- Is clearly copy-pasted boilerplate with no article-specific content
 `,
 
   quickApprove: `
 QUICK APPROVE CRITERIA (7/8 points):
 Use quick approve when:
-- All template sections are filled in
-- No obvious AI generation or fabrication
+- All four template sections are filled in (claim, limitation, question, uncertainty)
+- No obvious fabrication or wrong-article content
 - Student engaged with the actual article
-- Limitations are present, even if not deeply analyzed
+- Reasoning is present, even if not deeply analyzed
 
-Quick approve scores: Article Engagement 2, Using Evidence 1, Critical Questioning 2, Clinical Connection 2
+Quick approve scores: The Claim 2, The Limitation 2, My Question 1, Student Uncertainty 2
 This reflects "honest effort" baseline. Most students who genuinely engage should land at 7-8.
 `,
 };
@@ -332,28 +344,28 @@ ${c.name} (${c.templateSection}) — 0/1/2 points
 
 === VALIDATION RULES (GENEROUS — round up when close) ===
 
-1. CLAIM VALIDATION:
+1. THE CLAIM (2 pts):
    - Score 2: Claim is related to the article's findings — even if paraphrased or not perfectly worded. If they clearly read the article, give the 2.
    - Score 1: Claim is vague or only tangentially related
    - Score 0: Claim doesn't match article, matches a MISCONCEPTION, or is fabricated
    - FLAG if claim clearly belongs to a different week's article
 
-2. LIMITATION VALIDATION:
+2. THE LIMITATION (2 pts):
    - Score 2: Identifies ANY real limitation AND gives some reasoning about why it matters. Does NOT need to match the exact list above — any valid limitation counts.
    - Score 1: Limitation named but no explanation of impact
    - Score 0: No limitation or irrelevant to this article
 
-3. EVIDENCE VALIDATION:
-   - Score 2: References ANY specific findings or details from the article — paraphrased findings absolutely count. "Most SLPs reported time as a barrier" = 2. "95% were ASHA members" = 2. They do NOT need exact p-values or percentages to earn full credit.
-   - Score 1: Only vague references like "the study found stuff" with zero detail
-   - Score 0: No evidence or fabricated statistics
+3. MY QUESTION (2 pts):
+   - Score 2: Identifies a relevant follow-up question AND describes something specific they learned from exploring it.
+   - Score 1: Question present but learning outcome is vague or generic
+   - Score 0: No question or no learning outcome
 
-4. CLINICAL CONNECTION:
-   - Score 2: ANY connection to practice, their future career, or how findings affect real-world work. Statements like "I need to build research habits now" or "clinics should give SLPs time for research" = 2. Personal takeaways about their own growth as future clinicians = 2.
-   - Score 1: ONLY if connection is a single throwaway sentence like "this is important for clinicians"
-   - Score 0: Completely absent — no mention of practice, career, or real-world implications at all
+4. STUDENT UNCERTAINTY (2 pts):
+   - Score 2: Expresses genuine uncertainty about something specific AND provides reasoning about why it remains unclear.
+   - Score 1: Uncertainty expressed but reasoning is weak or missing
+   - Score 0: No uncertainty expressed, or fake/performative uncertainty
 
-${GRADING_GUIDANCE.conversationComparison}
+${GRADING_GUIDANCE.toolDisclosure}
 
 === FLAGGING CRITERIA ===
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
@@ -368,10 +380,10 @@ If a student mentions using these tools, note it as a BONUS showing extra engage
 === YOUR TASK ===
 1. Identify which KEY FINDINGS the student's claim matches (or doesn't)
 2. Check if limitations match the CONFOUNDS & LIMITATIONS list
-3. Verify evidence isn't fabricated
-4. Assess clinical connection quality
-5. Compare conversation to reflection (do they match?)
-6. Flag ONLY if: article mismatch, unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), or misconception
+3. Assess whether follow-up question and learning are specific
+4. Assess whether uncertainty is genuine and reasoned
+5. Note any tool disclosures but grade on content quality
+6. Flag ONLY if: article mismatch, fabricated content, or boilerplate
 
 === OUTPUT FORMAT ===
 Use this EXACT format. For each criterion, provide scaffolded feedback that tells the student what they earned and what to do for full credit.
@@ -380,17 +392,17 @@ Week: ${weekNumber}
 Article: ${article.title}
 Claim Match: [Which key finding matches, or "No match" / "Misconception"]
 
-Article Engagement: [0/1/2]
-You earned [X]/2 on Article Engagement. [If 2: brief praise for what they did well. If <2: "To earn full points: [specific action — e.g., 'Identify a specific cause-and-effect claim like X causes Y, rather than describing the general topic.']"]
+The Claim: [0/1/2]
+You earned [X]/2 on The Claim. [If 2: brief praise for what they did well. If <2: "To earn full points: [specific action — e.g., 'Identify a specific cause-and-effect claim like X causes Y, rather than describing the general topic.']"]
 
-Using Evidence: [0/1/2]
-You earned [X]/2 on Using Evidence. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Cite a specific number or statistic from the article, such as a percentage or p-value.']"]
+The Limitation: [0/1/2]
+You earned [X]/2 on The Limitation. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Name a specific limitation AND explain how it affects the conclusions.']"]
 
-Critical Questioning: [0/1/2]
-You earned [X]/2 on Critical Questioning. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Name a specific assumption AND explain how it could change the conclusion.']"]
+My Question: [0/1/2]
+You earned [X]/2 on My Question. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Describe a specific question you explored AND what you learned from investigating it.']"]
 
-Clinical Connection: [0/1/2]
-You earned [X]/2 on Clinical Connection. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Describe a specific clinical scenario where this finding would change what you do.']"]
+Student Uncertainty: [0/1/2]
+You earned [X]/2 on Student Uncertainty. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Express genuine uncertainty about something specific AND explain why it remains unclear.']"]
 
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
@@ -404,6 +416,16 @@ YOUR DEFAULT STANCE: Give the student credit. If they showed effort and engageme
 
 ${GRADING_GUIDANCE.population}
 
+SUBMISSION FORMAT (120-150 words):
+Students submit a paragraph using this template:
+- This article claims that ___.
+- One limitation is ___, which matters because ___.
+- The follow-up question I found most useful was ___, and what I learned was ___.
+- One thing I am still unsure about is ___, because ___.
+
+Students may disclose tool usage (NotebookLM, LLMs) and provide citations.
+Grade the CONTENT, not whether they used tools.
+
 RUBRIC (8 points total):
 ${GRADING_RUBRIC.map(c => `
 ${c.name} (${c.templateSection}) — 0/1/2 points
@@ -412,37 +434,31 @@ ${c.name} (${c.templateSection}) — 0/1/2 points
 - 2: ${c.scoringGuide.two}
 `).join('\n')}
 
-${GRADING_GUIDANCE.conversationComparison}
+${GRADING_GUIDANCE.toolDisclosure}
 
 FLAGGING CRITERIA:
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
 
-SANCTIONED TOOLS (count POSITIVELY — do NOT flag):
-- NotebookLM, Google NotebookLM podcasts
-- Course briefing documents, flashcards, quizzes
-- Any scaffolding materials provided by the instructor
-
 YOUR TASK:
-1. Read the student's conversation transcript (their work)
-2. Read their reflection (their summary)
-3. Compare them — do they match in substance and sophistication?
-4. Score each criterion (0/1/2) with scaffolded feedback
-5. Flag ONLY if: unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), article mismatch, or fabrication
+1. Read the student's written submission
+2. Score each of the 4 criteria (0/1/2) based on content quality
+3. Note any tool disclosures but grade on content merit
+4. Flag ONLY if: wrong article, fabricated content, or obvious boilerplate
 
 OUTPUT FORMAT:
 Week: [number]
 
-Article Engagement: [0/1/2]
-You earned [X]/2 on Article Engagement. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+The Claim: [0/1/2]
+You earned [X]/2 on The Claim. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
 
-Using Evidence: [0/1/2]
-You earned [X]/2 on Using Evidence. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+The Limitation: [0/1/2]
+You earned [X]/2 on The Limitation. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
 
-Critical Questioning: [0/1/2]
-You earned [X]/2 on Critical Questioning. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+My Question: [0/1/2]
+You earned [X]/2 on My Question. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
 
-Clinical Connection: [0/1/2]
-You earned [X]/2 on Clinical Connection. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+Student Uncertainty: [0/1/2]
+You earned [X]/2 on Student Uncertainty. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
 
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]

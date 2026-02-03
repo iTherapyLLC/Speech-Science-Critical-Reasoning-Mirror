@@ -59,10 +59,10 @@ const FINAL_PARTS = [
 ]
 
 const WEEKLY_CRITERIA = [
-  { name: "Article Engagement", maxPoints: 2, focus: "THE CLAIM — Specific, accurate claim from the article" },
-  { name: "Using Evidence", maxPoints: 2, focus: "THE EVIDENCE — Specific findings, numbers, or data cited" },
-  { name: "Critical Questioning", maxPoints: 2, focus: "ASSUMPTION + PROBLEM — Limitation identified + why it matters" },
-  { name: "Clinical Connection", maxPoints: 2, focus: "WHY IT MATTERS + TAKEAWAY — Specific connection to clinical practice" },
+  { name: "The Claim", maxPoints: 2, focus: "Specific, accurate claim from the article (X causes Y)" },
+  { name: "The Limitation", maxPoints: 2, focus: "Limitation identified + why it matters for the findings" },
+  { name: "My Question", maxPoints: 2, focus: "Useful follow-up question + what they learned from exploring it" },
+  { name: "Student Uncertainty", maxPoints: 2, focus: "Genuine uncertainty expressed + reasoning about why" },
 ]
 
 // ============================================================================
@@ -80,7 +80,6 @@ export default function GradingAssistant() {
   const [mode, setMode] = useState<AssessmentMode>("weekly")
   const [weekNumber, setWeekNumber] = useState<number>(2)
   const [studentSubmission, setStudentSubmission] = useState("")
-  const [conversationTranscript, setConversationTranscript] = useState("")
   const [isGrading, setIsGrading] = useState(false)
   const [showRubric, setShowRubric] = useState(false)
 
@@ -162,7 +161,6 @@ export default function GradingAssistant() {
           mode,
           weekNumber: mode === "weekly" ? weekNumber : undefined,
           studentSubmission: studentSubmission.trim(),
-          conversationTranscript: conversationTranscript.trim() || undefined,
         }),
       })
 
@@ -257,7 +255,7 @@ export default function GradingAssistant() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">SLHS 303 Grading Assistant</h1>
-              <p className="text-xs text-slate-400">Claude Sonnet 4</p>
+              <p className="text-xs text-slate-400">Claude Opus 4</p>
             </div>
           </div>
           <button
@@ -407,44 +405,32 @@ export default function GradingAssistant() {
         {/* INPUT AREA */}
         {/* ================================================================ */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-          {/* Conversation transcript (optional, weekly mode only) */}
-          {mode === "weekly" && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Conversation Transcript <span className="text-slate-400">(optional — paste from Canvas)</span>
-              </label>
-              <textarea
-                value={conversationTranscript}
-                onChange={(e) => setConversationTranscript(e.target.value)}
-                placeholder="Paste the student's conversation transcript here (MIRROR: ... YOU: ...)"
-                rows={6}
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y font-mono"
-              />
-            </div>
-          )}
-
           {/* Student submission */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              {mode === "weekly" ? "Student Reflection" : mode === "midterm" ? "Midterm Response" : "Final Exam Response"}
+              {mode === "weekly" ? "Student Submission (120-150 words)" : mode === "midterm" ? "Midterm Response" : "Final Exam Response"}
               <span className="text-red-500 ml-1">*</span>
-              <span className="text-slate-400 ml-2 font-normal">(paste from Canvas)</span>
             </label>
+            {mode === "weekly" && (
+              <p className="text-xs text-slate-500 mb-2">
+                Template: The claim → The limitation → My question → Student uncertainty
+              </p>
+            )}
             <textarea
               value={studentSubmission}
               onChange={(e) => setStudentSubmission(e.target.value)}
               placeholder={
                 mode === "weekly"
-                  ? "Paste the student's reflection here..."
+                  ? "This article claims that ___.\n\nOne limitation is ___, which matters because ___.\n\nThe follow-up question I found most useful was ___, and what I learned from the article was ___.\n\nOne thing I am still unsure about is ___, because ___."
                   : mode === "midterm"
-                  ? "Paste the student's full midterm response here (all parts)..."
-                  : "Paste the student's full final exam response here (all parts)..."
+                  ? "Paste the student's full midterm response here (all 4 parts)..."
+                  : "Paste the student's full final exam response here (all 5 parts)..."
               }
-              rows={mode === "weekly" ? 10 : 16}
+              rows={mode === "weekly" ? 12 : 16}
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y font-mono"
             />
             <div className="flex justify-between mt-2 text-xs text-slate-400">
-              <span>{studentSubmission.trim().split(/\s+/).filter(w => w.length > 0).length} words</span>
+              <span>{studentSubmission.trim().split(/\s+/).filter(w => w.length > 0).length} words {mode === "weekly" && "(target: 120-150)"}</span>
               <span>{studentSubmission.length.toLocaleString()} characters</span>
             </div>
           </div>
@@ -464,7 +450,7 @@ export default function GradingAssistant() {
             {isGrading ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Grading with Opus 4.5...
+                Grading with Opus 4...
               </>
             ) : (
               <>
