@@ -59,10 +59,10 @@ const FINAL_PARTS = [
 ]
 
 const WEEKLY_CRITERIA = [
-  { name: "The Claim", maxPoints: 2, focus: "Specific, accurate claim from the article (X causes Y)" },
-  { name: "The Limitation", maxPoints: 2, focus: "Limitation identified + why it matters for the findings" },
-  { name: "My Question", maxPoints: 2, focus: "Useful follow-up question + what they learned from exploring it" },
-  { name: "Student Uncertainty", maxPoints: 2, focus: "Genuine uncertainty expressed + reasoning about why" },
+  { name: "Article Engagement", maxPoints: 2, focus: "0=didn't read | 1=surface-level | 2=honest effort to understand question, methods, findings" },
+  { name: "Using Evidence", maxPoints: 2, focus: "0=no reference | 1=vague references | 2=specific findings, numbers, or details" },
+  { name: "Critical Questioning", maxPoints: 2, focus: "0=no questions | 1=limitation without impact | 2=limitation + why it matters" },
+  { name: "Clinical Connection", maxPoints: 2, focus: "0=no real-world link | 1=generic | 2=specific, thoughtful clinical scenario" },
 ]
 
 // ============================================================================
@@ -413,7 +413,7 @@ export default function GradingAssistant() {
             </label>
             {mode === "weekly" && (
               <p className="text-xs text-slate-500 mb-2">
-                Template: The claim → The limitation → My question → Student uncertainty
+                Rubric: Article Engagement → Using Evidence → Critical Questioning → Clinical Connection
               </p>
             )}
             <textarea
@@ -421,7 +421,7 @@ export default function GradingAssistant() {
               onChange={(e) => setStudentSubmission(e.target.value)}
               placeholder={
                 mode === "weekly"
-                  ? "This article claims that ___.\n\nOne limitation is ___, which matters because ___.\n\nThe follow-up question I found most useful was ___, and what I learned from the article was ___.\n\nOne thing I am still unsure about is ___, because ___."
+                  ? "Paste the student's weekly submission here...\n\nThe grader will evaluate:\n• Article Engagement — Did they understand the research?\n• Using Evidence — Did they cite specific findings?\n• Critical Questioning — Did they identify and explain a limitation?\n• Clinical Connection — Did they make a specific real-world link?"
                   : mode === "midterm"
                   ? "Paste the student's full midterm response here (all 4 parts)..."
                   : "Paste the student's full final exam response here (all 5 parts)..."

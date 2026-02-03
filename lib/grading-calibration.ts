@@ -1,23 +1,22 @@
 /**
- * SLHS 303 Grading Calibration Examples
+ * SLHS 303 Grading Calibration
  *
- * This file contains calibrated examples for each rubric criterion at each score level (0, 1, 2).
- * Use these to maintain consistency when grading student submissions.
+ * GRADING PHILOSOPHY (from syllabus):
+ * - "The goal is for everyone to succeed"
+ * - "Learning is iterative. Feedback and revision are built into the process"
+ * - "The only way to fail this course is to disengage entirely"
+ * - "Mastery is defined by where reasoning ends up, not by first attempts"
  *
  * WEEKLY RUBRIC (8 points total, 4 criteria × 2 points each):
- * 1. The Claim — Did they identify a specific claim from the article? (X causes Y)
- * 2. The Limitation — Did they identify a limitation AND explain why it matters?
- * 3. My Question — Did they identify a useful follow-up question AND what they learned?
- * 4. Student Uncertainty — Did they express genuine uncertainty with reasoning?
+ * 1. Article Engagement — Did they read and understand the article?
+ * 2. Using Evidence — Do they point to specific findings?
+ * 3. Critical Questioning — Do they identify limitations and explain why they matter?
+ * 4. Clinical Connection — Do they make a specific real-world link?
  *
- * SUBMISSION FORMAT (120-150 words):
- * - This article claims that ___.
- * - One limitation is ___, which matters because ___.
- * - The follow-up question I found most useful was ___, and what I learned was ___.
- * - One thing I am still unsure about is ___, because ___.
- *
- * Students may disclose tool usage (NotebookLM, LLMs, etc.) and provide citations.
- * Tool disclosure is noted but grading focuses on whether content meets rubric standards.
+ * AI TOOLS POLICY:
+ * - NotebookLM and similar tools are OPTIONAL study aids
+ * - Students graded only on their own written work
+ * - Tool disclosure is noted but does not affect scoring
  */
 
 import {
@@ -39,7 +38,6 @@ export interface CalibrationExample {
 
 export interface RubricCriterion {
   name: string;
-  templateSection: string;
   description: string;
   scoringGuide: {
     zero: string;
@@ -50,139 +48,154 @@ export interface RubricCriterion {
 }
 
 // ============================================================================
-// RUBRIC CRITERIA WITH CALIBRATION EXAMPLES
+// GRADING PHILOSOPHY
+// ============================================================================
+
+export const GRADING_PHILOSOPHY = `
+GRADING PHILOSOPHY (from syllabus):
+- "The goal is for everyone to succeed"
+- "Learning is iterative. Feedback and revision are built into the process"
+- "The only way to fail this course is to disengage entirely"
+- "Mastery is defined by where reasoning ends up, not by first attempts"
+
+WHAT THIS MEANS FOR GRADING:
+- Students can REVISE for full credit on ALL assessments
+- Feedback should be specific enough that students know EXACTLY what to do to improve
+- Your job is to COACH, not gatekeep
+- When in doubt, round UP
+- A student who shows genuine effort should score 6-8/8
+`;
+
+// ============================================================================
+// WEEKLY RUBRIC CRITERIA (from syllabus)
 // ============================================================================
 
 export const GRADING_RUBRIC: RubricCriterion[] = [
   {
-    name: "The Claim",
-    templateSection: "This article claims that ___",
-    description: "Did the student identify a specific, accurate claim from the article?",
+    name: "Article Engagement",
+    description: "Did the student read the article and make an honest effort to understand the question, methods, and findings?",
     scoringGuide: {
-      zero: "Missing, vague, or incorrect claim. Example: 'The article was about voice.'",
-      one: "General claim present but lacks specificity. Example: 'The article claims that measurements can vary.'",
-      two: "Specific, accurate claim with clear X→Y structure. Example: 'The article claims that speaking louder reduces jitter and shimmer values, even in healthy voices.'",
+      zero: "Did not read or major misunderstanding of the article",
+      one: "Read but engagement is surface-level (summaries without understanding)",
+      two: "Shows honest effort to understand the research question, methods, and findings",
     },
     examples: [
       {
         score: 0,
-        label: "Missing/Incorrect",
-        description: "No claim identified or completely wrong",
-        example: "This article claims that voice quality is important in clinics.",
-        feedback: "This describes the topic, not a specific claim. A claim states that X causes Y or X is related to Y.",
+        label: "Did not read / Major misunderstanding",
+        description: "No evidence of reading, or completely wrong about what the article says",
+        example: "This article was about how voice therapy helps patients recover faster.",
+        feedback: "This doesn't match the article we read this week. To earn full points: Re-read the article and describe the main research question the authors were trying to answer.",
       },
       {
         score: 1,
-        label: "Vague/General",
-        description: "Claim present but not specific",
-        example: "This article claims that different factors can affect voice measurements.",
-        feedback: "This is too general. Which factors? Affect measurements how? Be specific about what the researchers found.",
+        label: "Surface-level",
+        description: "Read but only summarizes without showing understanding",
+        example: "The article was about voice measurements and how they can be affected by different things.",
+        feedback: "You've captured the general topic, but this is surface-level. To earn full points: Explain WHAT the researchers found (their specific results) and WHY that matters.",
       },
       {
         score: 2,
-        label: "Specific/Accurate",
-        description: "Clear, specific claim with X→Y structure",
-        example: "This article claims that jitter and shimmer values decrease (appear 'better') when participants speak at louder intensities, even though their actual voice health didn't change.",
-        feedback: "Excellent! This is specific, accurate, and captures the key finding.",
+        label: "Honest effort to understand",
+        description: "Shows genuine engagement with the research question, methods, and findings",
+        example: "The researchers asked whether speaking louder affects jitter and shimmer measurements in healthy voices. They found that louder voice systematically reduced perturbation values, which means clinicians might get 'better' scores just because a patient is speaking louder—not because their voice is actually healthier.",
+        feedback: "Excellent engagement! You understood the research question, the key finding, and why it matters clinically.",
       },
     ],
   },
   {
-    name: "The Limitation",
-    templateSection: "One limitation is ___, which matters because ___",
-    description: "Did the student identify a limitation AND explain why it matters for the findings?",
+    name: "Using Evidence",
+    description: "Does the student point to specific findings, numbers, or details from the article?",
     scoringGuide: {
-      zero: "No limitation identified, or limitation without explanation of why it matters.",
-      one: "Limitation identified but explanation is weak or missing.",
-      two: "Clear limitation with thoughtful explanation of its implications for the findings.",
+      zero: "No reference to article content",
+      one: "Vague references without specific details",
+      two: "Points to specific findings, numbers, or details from the article",
     },
     examples: [
       {
         score: 0,
-        label: "Missing/No Explanation",
-        description: "No limitation or just 'small sample size' with nothing else",
-        example: "One limitation is the sample size was small.",
-        feedback: "This is too vague. Why does sample size matter for THIS study? How does it affect what we can conclude?",
+        label: "No reference",
+        description: "Makes claims but doesn't connect them to the article",
+        example: "Voice quality is important for communication and clinicians should measure it carefully.",
+        feedback: "This is a general statement that could apply to any article. To earn full points: Reference a specific finding from THIS article—what did the researchers actually find?",
       },
       {
         score: 1,
-        label: "Limitation Without Impact",
-        description: "Identifies issue but doesn't explain why it matters",
-        example: "One limitation is they assumed participants answered honestly, which matters because people might not tell the truth.",
-        feedback: "Good identification! But be more specific: how would dishonest answers affect the specific conclusions of this study?",
+        label: "Vague references",
+        description: "References the article but without specifics",
+        example: "The article showed that measurements can change depending on how people speak.",
+        feedback: "Good that you're referencing the article, but this is vague. To earn full points: Be specific—WHICH measurements changed? By how much? Under what conditions?",
       },
       {
         score: 2,
-        label: "Limitation + Clear Impact",
-        description: "Clear limitation with explanation of implications",
-        example: "One limitation is the self-selected sample (95% ASHA members), which matters because these are likely more engaged professionals who already value research, so the real barriers for less-engaged SLPs might be even bigger than reported.",
-        feedback: "Excellent! Clear limitation, specific to this study, and thoughtful explanation of how it affects the conclusions.",
+        label: "Specific details",
+        description: "Cites specific findings, numbers, or methodological details",
+        example: "The study found that when participants increased from 'comfortable' to 'loud' speaking, jitter decreased from 1.2% to 0.8% on average—a 33% change in the measurement even though nothing changed about voice health.",
+        feedback: "Great use of specific evidence! You cited the actual numbers and explained what they mean.",
       },
     ],
   },
   {
-    name: "My Question",
-    templateSection: "The follow-up question I found most useful was ___, and what I learned was ___",
-    description: "Did the student identify a useful follow-up question AND what they learned from exploring it?",
+    name: "Critical Questioning",
+    description: "Does the student identify something limited or confusing and explain why it matters?",
     scoringGuide: {
-      zero: "No question identified, or question with no learning outcome.",
-      one: "Question present but learning outcome is vague or generic.",
-      two: "Specific, relevant question with clear learning outcome from the article.",
+      zero: "No questions raised about the research",
+      one: "Notes a limitation but doesn't explain why it matters for the findings",
+      two: "Identifies something limited or confusing AND explains why it matters",
     },
     examples: [
       {
         score: 0,
-        label: "Missing/No Learning",
-        description: "No question or question with nothing learned",
-        example: "The follow-up question I found most useful was why this matters, and I learned that it does matter.",
-        feedback: "This is circular. What specific question did you explore? What specific new understanding did you gain?",
+        label: "No questions raised",
+        description: "Accepts the article at face value without questioning",
+        example: "This was a well-designed study that proved voice measurements are affected by loudness.",
+        feedback: "All research has limitations. To earn full points: Identify ONE thing that limits what we can conclude from this study, and explain why that limitation matters.",
       },
       {
         score: 1,
-        label: "Question Without Depth",
-        description: "Question present but learning is vague",
-        example: "The follow-up question I found most useful was how this affects clinicians, and I learned that clinicians should be careful.",
-        feedback: "Good question! But what specifically did you learn about how it affects clinicians? Be more concrete.",
+        label: "Limitation without impact",
+        description: "Identifies a limitation but doesn't explain its significance",
+        example: "A limitation is that they only tested healthy voices.",
+        feedback: "Good observation! But WHY does that matter? To earn full points: Explain how testing only healthy voices affects what we can conclude about clinical populations.",
       },
       {
         score: 2,
-        label: "Question + Clear Learning",
-        description: "Specific question with concrete learning outcome",
-        example: "The follow-up question I found most useful was 'what would make this study stronger?' and I learned that using a random sample instead of self-selected respondents and adding objective measures of EBP use (not just self-report) would give more trustworthy results.",
-        feedback: "Excellent! Clear question and specific, actionable learning that shows deeper engagement with the research.",
+        label: "Limitation + explanation",
+        description: "Identifies limitation AND explains why it matters for the conclusions",
+        example: "They only tested healthy voices, which matters because we don't know if the same loudness confound happens in disordered voices—maybe pathology interacts with intensity differently, so clinicians can't assume these findings apply to their patients.",
+        feedback: "Excellent critical thinking! You identified the limitation AND explained exactly why it matters for applying these findings clinically.",
       },
     ],
   },
   {
-    name: "Student Uncertainty",
-    templateSection: "One thing I am still unsure about is ___, because ___",
-    description: "Did the student express genuine uncertainty with reasoning about why?",
+    name: "Clinical Connection",
+    description: "Does the student make a specific, thoughtful connection to real-world clinical practice?",
     scoringGuide: {
-      zero: "No uncertainty expressed, or fake/performative uncertainty.",
-      one: "Uncertainty expressed but reasoning is weak or missing.",
-      two: "Genuine uncertainty with thoughtful reasoning about why it remains unclear.",
+      zero: "No real-world link",
+      one: "Generic connection (e.g., 'clinicians should be careful')",
+      two: "Specific, thoughtful clinical connection",
     },
     examples: [
       {
         score: 0,
-        label: "Missing/Fake",
-        description: "No uncertainty or obviously performative",
-        example: "One thing I am still unsure about is everything, because this is complicated.",
-        feedback: "This isn't genuine uncertainty. What specific aspect remains unclear to you after reading the article?",
+        label: "No real-world link",
+        description: "Discusses findings only in abstract/research terms",
+        example: "This study contributes to our understanding of acoustic measurement methodology.",
+        feedback: "How does this affect actual clinical practice? To earn full points: Describe a specific clinical scenario where this finding would matter.",
       },
       {
         score: 1,
-        label: "Uncertainty Without Reasoning",
-        description: "Uncertainty present but reasoning is weak",
-        example: "One thing I am still unsure about is how this applies to real clinics, because I haven't worked in one yet.",
-        feedback: "This is a reasonable uncertainty, but the reasoning is about your experience, not about the article. What in the article itself leaves this unclear?",
+        label: "Generic connection",
+        description: "Makes a connection but it's vague or obvious",
+        example: "Clinicians should be careful when measuring voice.",
+        feedback: "This is true but generic. To earn full points: Be specific—WHAT should clinicians do differently? In what situation? How would their practice change?",
       },
       {
         score: 2,
-        label: "Genuine + Reasoned",
-        description: "Authentic uncertainty with thoughtful reasoning",
-        example: "One thing I am still unsure about is whether training alone can overcome systemic barriers like high caseloads, because the study showed training only explained 17% of the variance in EBP use, which means 83% is explained by other factors they didn't fully identify.",
-        feedback: "Excellent! This shows you understood the findings AND can identify where the evidence leaves questions unanswered.",
+        label: "Specific, thoughtful connection",
+        description: "Identifies a specific clinical scenario and explains how the findings apply",
+        example: "If a patient with vocal nodules is tracking their jitter over time to monitor progress, and they happen to speak louder at their follow-up appointment, the clinician might think they're improving when really it's just the loudness confound. This means clinicians should standardize intensity levels when comparing measurements across sessions.",
+        feedback: "Excellent clinical connection! You identified a specific scenario, explained the problem, and proposed a practical solution.",
       },
     ],
   },
@@ -201,14 +214,14 @@ export interface FlagCriterion {
 
 export const FLAGGING_CRITERIA: FlagCriterion[] = [
   {
-    name: "Article Mismatch",
-    description: "Response discusses wrong article or fabricated findings",
+    name: "Wrong Article",
+    description: "Response discusses a different article than assigned",
     examples: [
       "Claims don't match the assigned week's article",
-      "Cites findings not present in the article",
       "Discusses completely different topic than assigned",
+      "References authors/findings from another week",
     ],
-    action: "Verify claims against article. If fabricated or wrong article, flag and assign 0 for The Claim.",
+    action: "Flag and assign 0 for Article Engagement. Note which article they appear to have used.",
   },
   {
     name: "Fabricated Content",
@@ -218,26 +231,17 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
       "Describes methodology or sample that doesn't match",
       "Invents author names or study details",
     ],
-    action: "Flag for review. Score based on what IS accurate, but note the fabrication.",
+    action: "Flag for review. Score based on what IS accurate, but note the fabrication in feedback.",
   },
   {
-    name: "Word Count Violation",
-    description: "Response significantly under or over word count (target: 120-150 words)",
+    name: "No Engagement",
+    description: "Response shows no evidence of reading or effort",
     examples: [
-      "Under 80 words (significantly incomplete)",
-      "Over 250 words (didn't follow instructions)",
+      "Single sentence or near-empty submission",
+      "Generic text that could apply to any article",
+      "Copy-pasted text unrelated to the assignment",
     ],
-    action: "Note in feedback but don't automatically penalize if content is good. Significant under-count usually means missing criteria.",
-  },
-  {
-    name: "Critical Misunderstanding",
-    description: "Student fundamentally misunderstands the article's main claim",
-    examples: [
-      "States the opposite of what the article found",
-      "Confuses the variables (says X causes Y when article says Y causes X)",
-      "Misinterprets correlation as causation when article explicitly didn't",
-    ],
-    action: "Address in feedback as a teaching moment. This is NOT automatic zero — grade what they got right.",
+    action: "Score based on what's present (likely 0-2 total). Provide encouragement and specific guidance for resubmission.",
   },
 ];
 
@@ -247,52 +251,47 @@ export const FLAGGING_CRITERIA: FlagCriterion[] = [
 
 export const GRADING_GUIDANCE = {
   population: `
-CRITICAL CONTEXT ABOUT THESE STUDENTS:
+STUDENT CONTEXT:
 - These are undergraduates, many first-generation college students
-- Zero out of 37 knew who Socrates was before this course
-- They have never done critical thinking exercises before
+- Many have never done critical thinking exercises before
 - They are learning the PROCESS of scientific reasoning
-- We are grading EFFORT and ENGAGEMENT, not expertise
+- We grade EFFORT and ENGAGEMENT, not expertise
 
-SCORING PHILOSOPHY — GENEROUS BY DEFAULT:
-- If they attempted the template with genuine effort → 7-8 points (this is the BASELINE for real engagement)
-- If they filled in blanks but answers are thin/generic → 5-6 points
-- If sections are missing or clearly didn't engage → 3-4 points
-- Reserve 0-2 points ONLY for non-submissions or obvious cheating
-- WHEN IN DOUBT, round UP. A 1 that's close to a 2 should be a 2.
-- These students can resubmit for full credit — your job is to coach, not gatekeep.
+SCORING STANCE — GENEROUS BY DEFAULT:
+- 7-8 points: Genuine effort, all criteria addressed with thought
+- 5-6 points: Partial effort, some criteria thin or generic
+- 3-4 points: Minimal effort, missing criteria or surface-level throughout
+- 0-2 points: No engagement or wrong article
+- WHEN IN DOUBT, round UP
 `,
 
   toolDisclosure: `
-TOOL USAGE AND CITATIONS:
-Students may disclose using tools (NotebookLM, LLMs, etc.) and provide citations.
-- Tool disclosure is NOTED but does not affect scoring
-- Grading focuses on whether the CONTENT meets rubric standards
+AI TOOLS POLICY (from syllabus):
+- Tools like NotebookLM are OPTIONAL study aids
+- Students graded only on their own written work submitted in Canvas
+- Tool disclosure is noted but does NOT affect scoring
 - A well-written response using NotebookLM gets the same score as one without
 - A poorly-written response claiming no tools gets the same score as one with tools
-- The question is always: Does this submission demonstrate understanding?
 
 SANCTIONED TOOLS (do NOT flag):
-- NotebookLM, Google NotebookLM podcasts, briefing docs, flashcards, quizzes
-- Course scaffolding materials provided by the instructor
-- LLMs used for learning (not for writing the submission)
+- NotebookLM, Google NotebookLM podcasts
+- Course briefing documents, flashcards, quizzes
+- Any scaffolding materials provided by the instructor
 
-FLAG ONLY if the submission:
-- Discusses wrong article content
+FLAG ONLY if:
+- Discusses wrong article
 - Contains fabricated statistics or findings
-- Is clearly copy-pasted boilerplate with no article-specific content
+- Shows zero engagement with the actual assignment
 `,
 
-  quickApprove: `
-QUICK APPROVE CRITERIA (7/8 points):
-Use quick approve when:
-- All four template sections are filled in (claim, limitation, question, uncertainty)
-- No obvious fabrication or wrong-article content
-- Student engaged with the actual article
-- Reasoning is present, even if not deeply analyzed
+  feedbackFormat: `
+FEEDBACK FORMAT — Be specific enough for revision:
+- For FULL POINTS: Brief praise noting what they did well
+- For PARTIAL CREDIT: "To earn full points: [SPECIFIC action]"
 
-Quick approve scores: The Claim 2, The Limitation 2, My Question 1, Student Uncertainty 2
-This reflects "honest effort" baseline. Most students who genuinely engage should land at 7-8.
+The feedback should tell students EXACTLY what to do differently if they resubmit.
+Bad: "Be more specific"
+Good: "To earn full points: Name a specific finding from the article (e.g., jitter decreased by X% when loudness increased) instead of summarizing the general topic."
 `,
 };
 
@@ -309,9 +308,9 @@ export function buildGradingPrompt(weekNumber: number): string {
     return GRADING_SYSTEM_PROMPT_BASE;
   }
 
-  return `You are a GENEROUS, coaching-oriented grading assistant for SLHS 303 Speech and Hearing Science.
+  return `You are a coaching-oriented grading assistant for SLHS 303 Speech and Hearing Science.
 
-YOUR DEFAULT STANCE: Give the student credit. If they showed effort and engagement, lean toward the higher score. A submission that addresses all sections with genuine thought should score 7-8/8. Reserve scores below 6 for submissions that are clearly thin, missing sections, or fabricated.
+${GRADING_PHILOSOPHY}
 
 ${GRADING_GUIDANCE.population}
 
@@ -334,101 +333,83 @@ CLINICAL CONNECTION: ${article.clinicalConnection}
 SOCRATIC QUESTIONS (reference for good follow-up questions):
 ${article.socraticQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
-=== RUBRIC (8 points total) ===
+=== WEEKLY RUBRIC (8 points total) ===
 ${GRADING_RUBRIC.map(c => `
-${c.name} (${c.templateSection}) — 0/1/2 points
+${c.name} (2 pts): ${c.description}
 - 0: ${c.scoringGuide.zero}
 - 1: ${c.scoringGuide.one}
 - 2: ${c.scoringGuide.two}
 `).join('\n')}
 
-=== VALIDATION RULES (GENEROUS — round up when close) ===
+=== VALIDATION RULES ===
 
-1. THE CLAIM (2 pts):
-   - Score 2: Claim is related to the article's findings — even if paraphrased or not perfectly worded. If they clearly read the article, give the 2.
-   - Score 1: Claim is vague or only tangentially related
-   - Score 0: Claim doesn't match article, matches a MISCONCEPTION, or is fabricated
-   - FLAG if claim clearly belongs to a different week's article
+1. ARTICLE ENGAGEMENT (2 pts):
+   - Score 2: Shows they understood the research question and key findings
+   - Score 1: Read but only summarizes without real understanding
+   - Score 0: Didn't read, major misunderstanding, or WRONG ARTICLE
+   - FLAG if discussing a different week's article
 
-2. THE LIMITATION (2 pts):
-   - Score 2: Identifies ANY real limitation AND gives some reasoning about why it matters. Does NOT need to match the exact list above — any valid limitation counts.
-   - Score 1: Limitation named but no explanation of impact
-   - Score 0: No limitation or irrelevant to this article
+2. USING EVIDENCE (2 pts):
+   - Score 2: References specific findings, numbers, or details
+   - Score 1: Vague references without specifics
+   - Score 0: No references to article content
 
-3. MY QUESTION (2 pts):
-   - Score 2: Identifies a relevant follow-up question AND describes something specific they learned from exploring it.
-   - Score 1: Question present but learning outcome is vague or generic
-   - Score 0: No question or no learning outcome
+3. CRITICAL QUESTIONING (2 pts):
+   - Score 2: Identifies limitation AND explains why it matters
+   - Score 1: Notes limitation but doesn't explain impact
+   - Score 0: No critical questions raised
 
-4. STUDENT UNCERTAINTY (2 pts):
-   - Score 2: Expresses genuine uncertainty about something specific AND provides reasoning about why it remains unclear.
-   - Score 1: Uncertainty expressed but reasoning is weak or missing
-   - Score 0: No uncertainty expressed, or fake/performative uncertainty
+4. CLINICAL CONNECTION (2 pts):
+   - Score 2: Specific scenario with thoughtful application
+   - Score 1: Generic "clinicians should be careful"
+   - Score 0: No real-world connection
 
 ${GRADING_GUIDANCE.toolDisclosure}
 
 === FLAGGING CRITERIA ===
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
-- WRONG ARTICLE: Student discusses findings from a different week's article
-
-SANCTIONED TOOLS (BONUS, not required — NEVER deduct for absence):
-- NotebookLM, Google NotebookLM podcasts
-- Course briefing documents, flashcards, quizzes
-- Any scaffolding materials provided by the instructor
-If a student mentions using these tools, note it as a BONUS showing extra engagement. If they DON'T mention them, that's completely fine — never penalize or deduct for not using scaffolding tools.
 
 === YOUR TASK ===
-1. Identify which KEY FINDINGS the student's claim matches (or doesn't)
-2. Check if limitations match the CONFOUNDS & LIMITATIONS list
-3. Assess whether follow-up question and learning are specific
-4. Assess whether uncertainty is genuine and reasoned
-5. Note any tool disclosures but grade on content quality
-6. Flag ONLY if: article mismatch, fabricated content, or boilerplate
+1. Read the student's submission
+2. Score each of the 4 criteria (0/1/2)
+3. For each criterion, provide feedback using this format:
+   - Full points: Brief praise for what they did well
+   - Partial credit: "To earn full points: [SPECIFIC action for resubmission]"
+4. Flag ONLY if: wrong article, fabricated content, or zero engagement
 
 === OUTPUT FORMAT ===
-Use this EXACT format. For each criterion, provide scaffolded feedback that tells the student what they earned and what to do for full credit.
-
 Week: ${weekNumber}
 Article: ${article.title}
-Claim Match: [Which key finding matches, or "No match" / "Misconception"]
 
-The Claim: [0/1/2]
-You earned [X]/2 on The Claim. [If 2: brief praise for what they did well. If <2: "To earn full points: [specific action — e.g., 'Identify a specific cause-and-effect claim like X causes Y, rather than describing the general topic.']"]
+Article Engagement: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-The Limitation: [0/1/2]
-You earned [X]/2 on The Limitation. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Name a specific limitation AND explain how it affects the conclusions.']"]
+Using Evidence: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-My Question: [0/1/2]
-You earned [X]/2 on My Question. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Describe a specific question you explored AND what you learned from investigating it.']"]
+Critical Questioning: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-Student Uncertainty: [0/1/2]
-You earned [X]/2 on Student Uncertainty. [If 2: brief praise. If <2: "To earn full points: [specific action — e.g., 'Express genuine uncertainty about something specific AND explain why it remains unclear.']"]
+Clinical Connection: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
+
+Remember: Students can REVISE for full credit. Make your feedback actionable.
 `;
 }
 
 // Base prompt without week-specific content (fallback)
-export const GRADING_SYSTEM_PROMPT_BASE = `You are a GENEROUS, coaching-oriented grading assistant for SLHS 303 Speech and Hearing Science.
+export const GRADING_SYSTEM_PROMPT_BASE = `You are a coaching-oriented grading assistant for SLHS 303 Speech and Hearing Science.
 
-YOUR DEFAULT STANCE: Give the student credit. If they showed effort and engagement, lean toward the higher score. A submission that addresses all sections with genuine thought should score 7-8/8. Reserve scores below 6 for submissions that are clearly thin, missing sections, or fabricated.
+${GRADING_PHILOSOPHY}
 
 ${GRADING_GUIDANCE.population}
 
-SUBMISSION FORMAT (120-150 words):
-Students submit a paragraph using this template:
-- This article claims that ___.
-- One limitation is ___, which matters because ___.
-- The follow-up question I found most useful was ___, and what I learned was ___.
-- One thing I am still unsure about is ___, because ___.
-
-Students may disclose tool usage (NotebookLM, LLMs) and provide citations.
-Grade the CONTENT, not whether they used tools.
-
-RUBRIC (8 points total):
+=== WEEKLY RUBRIC (8 points total) ===
 ${GRADING_RUBRIC.map(c => `
-${c.name} (${c.templateSection}) — 0/1/2 points
+${c.name} (2 pts): ${c.description}
 - 0: ${c.scoringGuide.zero}
 - 1: ${c.scoringGuide.one}
 - 2: ${c.scoringGuide.two}
@@ -436,32 +417,36 @@ ${c.name} (${c.templateSection}) — 0/1/2 points
 
 ${GRADING_GUIDANCE.toolDisclosure}
 
-FLAGGING CRITERIA:
+=== FLAGGING CRITERIA ===
 ${FLAGGING_CRITERIA.map(f => `- ${f.name}: ${f.description}`).join('\n')}
 
-YOUR TASK:
-1. Read the student's written submission
-2. Score each of the 4 criteria (0/1/2) based on content quality
-3. Note any tool disclosures but grade on content merit
-4. Flag ONLY if: wrong article, fabricated content, or obvious boilerplate
+=== YOUR TASK ===
+1. Read the student's submission
+2. Score each of the 4 criteria (0/1/2)
+3. For each criterion, provide feedback using this format:
+   - Full points: Brief praise for what they did well
+   - Partial credit: "To earn full points: [SPECIFIC action for resubmission]"
+4. Flag ONLY if: wrong article, fabricated content, or zero engagement
 
-OUTPUT FORMAT:
+=== OUTPUT FORMAT ===
 Week: [number]
 
-The Claim: [0/1/2]
-You earned [X]/2 on The Claim. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+Article Engagement: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-The Limitation: [0/1/2]
-You earned [X]/2 on The Limitation. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+Using Evidence: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-My Question: [0/1/2]
-You earned [X]/2 on My Question. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+Critical Questioning: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
-Student Uncertainty: [0/1/2]
-You earned [X]/2 on Student Uncertainty. [If 2: brief praise. If <2: "To earn full points: [specific action]"]
+Clinical Connection: [0/1/2]
+[Feedback with specific guidance for improvement if needed]
 
 Total: [X]/8
 Flagged: [Yes/No] — [reason if yes]
+
+Remember: Students can REVISE for full credit. Make your feedback actionable.
 `;
 
 // Legacy export for backwards compatibility
@@ -544,7 +529,7 @@ export const WEEK_GRADING_NOTES: Record<number, {
 };
 
 // ============================================================================
-// MIDTERM RUBRIC (24 points total) — Covers Acts I–III, Due March 24
+// MIDTERM RUBRIC (24 points total) — Covers Acts I & II
 // ============================================================================
 
 export type AssessmentMode = 'weekly' | 'midterm' | 'final';
@@ -562,23 +547,23 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
   {
     name: "Part 1: Core Concepts",
     maxPoints: 8,
-    focus: "Definitions, mechanisms, causal chains",
+    focus: "Definitions, mechanisms, causal chains — explain WHY things happen, not just THAT they happen",
     scoringLevels: [
-      { points: 8, description: "Accurate definitions; complete causal chains (pressure → vibration → measurement); mechanisms explained" },
+      { points: 8, description: "Accurate definitions with complete causal chains (e.g., loudness → pressure → vibration stability → measurement); mechanisms explained" },
       { points: 6, description: "Mostly accurate; minor gaps in causal chains or definitions" },
-      { points: 4, description: "Partial; definitions present but without mechanisms" },
-      { points: 2, description: "Superficial; vague or incomplete understanding" },
+      { points: 4, description: "Partial understanding; definitions present but mechanisms unclear" },
+      { points: 2, description: "Superficial; vague definitions without mechanisms" },
       { points: 0, description: "Missing or fundamentally wrong" },
     ],
     keyConcepts: [
       "Source-filter theory",
-      "Jitter (timing instability)",
-      "Shimmer (amplitude instability)",
-      "Loudness confound",
+      "Jitter (cycle-to-cycle timing instability)",
+      "Shimmer (cycle-to-cycle amplitude instability)",
+      "Loudness confound (intensity affects perturbation measures)",
       "CPP (cepstral peak prominence)",
     ],
     lookFor: [
-      "Causal chains connecting pressure → vibration → measurement",
+      "Causal chains: loudness → subglottal pressure → vibration stability → measurement",
       "Distinction between source and filter contributions",
       "Understanding that jitter/shimmer are perturbation measures affected by intensity",
       "Recognition that CPP is more robust than perturbation measures",
@@ -587,7 +572,7 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
   {
     name: "Part 2: Interpreting Evidence",
     maxPoints: 8,
-    focus: "Applying understanding to research",
+    focus: "Applying understanding to research — connecting findings to mechanisms",
     scoringLevels: [
       { points: 8, description: "Correctly interprets findings; identifies variables; connects to mechanisms; notes limitations" },
       { points: 6, description: "Good interpretation with minor gaps in variable identification or limitation awareness" },
@@ -598,10 +583,10 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
     keyConcepts: [
       "Identifying independent and dependent variables",
       "Connecting findings to underlying mechanisms",
-      "Recognizing study limitations",
+      "Recognizing study limitations and their implications",
     ],
     lookFor: [
-      "References to specific articles from Acts I–III",
+      "References to specific articles from Acts I & II",
       "Explains WHY findings occurred, not just WHAT was found",
       "Acknowledges limitations of cited research",
       "Connects evidence to broader course themes",
@@ -610,9 +595,9 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
   {
     name: "Part 3: Perception Under Noise",
     maxPoints: 4,
-    focus: "Act II concepts",
+    focus: "Act II concepts — masking, context effects, signal clarity",
     scoringLevels: [
-      { points: 4, description: "Clear understanding of masking types; context effects; signal clarity" },
+      { points: 4, description: "Clear understanding of masking types; context effects; how listeners extract signal from noise" },
       { points: 3, description: "Good understanding with minor gaps" },
       { points: 2, description: "Confuses masking types or misattributes effects" },
       { points: 1, description: "Minimal understanding demonstrated" },
@@ -621,13 +606,13 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
     keyConcepts: [
       "Energetic masking (peripheral, frequency overlap)",
       "Informational masking (central, cognitive load)",
-      "Context effects on perception",
+      "Context effects on speech perception",
       "Signal clarity and degradation",
     ],
     lookFor: [
       "Correct distinction between energetic (peripheral) and informational (central) masking",
       "Understanding of how context aids perception in noisy environments",
-      "Application to clinical scenarios (e.g., hearing assessment environments)",
+      "Application to clinical scenarios",
     ],
   },
   {
@@ -635,23 +620,23 @@ export const MIDTERM_RUBRIC: ExamRubricPart[] = [
     maxPoints: 4,
     focus: "Growth and remaining questions",
     scoringLevels: [
-      { points: 4, description: "Specific growth identified; genuine remaining question; connects to course themes" },
-      { points: 3, description: "Good reflection but generic remaining question" },
+      { points: 4, description: "Specific growth identified (before → after); genuine remaining question; connects to course themes" },
+      { points: 3, description: "Good reflection but remaining question is generic" },
       { points: 2, description: "Surface-level 'I learned a lot' without specifics" },
       { points: 1, description: "Minimal effort" },
       { points: 0, description: "Missing" },
     ],
     keyConcepts: [],
     lookFor: [
-      "Specific example of conceptual growth (before → after understanding)",
-      "Genuine remaining question showing curiosity",
+      "Specific example of conceptual growth (what they believed before vs. now)",
+      "Genuine remaining question showing intellectual curiosity",
       "Connection between personal growth and course content",
     ],
   },
 ];
 
 // ============================================================================
-// FINAL RUBRIC (24 points total) — Covers All 4 Acts, Due May 14
+// FINAL RUBRIC (24 points total) — Covers All 4 Acts
 // Central Question: "What has to be true for linguistic communication to be worth the energy?"
 // ============================================================================
 
@@ -661,7 +646,7 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
     maxPoints: 4,
     focus: "Growth since Week 1",
     scoringLevels: [
-      { points: 4, description: "Specific Week 1 beliefs identified; clear conceptual shift; genuine growth articulated" },
+      { points: 4, description: "Specific Week 1 beliefs identified; clear conceptual shift articulated; genuine tone" },
       { points: 3, description: "Good reflection but lacks specificity about Week 1 starting point" },
       { points: 2, description: "Generic 'I learned a lot' without specific before/after" },
       { points: 1, description: "Minimal effort" },
@@ -675,9 +660,9 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
     ],
   },
   {
-    name: "Part 2: Act Insights (4 Acts × 2 pts)",
+    name: "Part 2: Act Insights",
     maxPoints: 8,
-    focus: "One key insight per Act with specific reference",
+    focus: "One key insight per Act with specific evidence (2 pts each × 4 Acts)",
     scoringLevels: [
       { points: 8, description: "All 4 Acts addressed with specific insights and article references; explains why each matters" },
       { points: 6, description: "3-4 Acts addressed; some insights lack specificity or references" },
@@ -686,24 +671,24 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
       { points: 0, description: "Missing or wrong Acts" },
     ],
     keyConcepts: [
-      "Act I: jitter/shimmer, loudness confound, CPP, source-filter theory",
-      "Act II: energetic/informational masking, context effects, signal clarity",
-      "Act III: subglottal pressure, Bernoulli effect, voice quality",
-      "Act IV: motor learning, practice effects, articulatory coordination",
+      "Act I: Measurement — jitter/shimmer, loudness confound, CPP, source-filter theory",
+      "Act II: Perception — energetic/informational masking, context effects, signal clarity",
+      "Act III: Production — subglottal pressure, Bernoulli effect, voice quality",
+      "Act IV: Learning — motor learning, practice effects, articulatory coordination",
     ],
     lookFor: [
       "Per Act: specific insight (not just topic mention)",
       "Per Act: reference to a specific article or finding",
       "Per Act: explanation of why that insight matters",
-      "Score 2 per Act if both insight + reference present; 1 if generic or missing reference; 0 if missing or wrong Act",
+      "Score 2 per Act if insight + reference present; 1 if generic/missing reference; 0 if missing",
     ],
   },
   {
     name: "Part 3: Making Connections",
     maxPoints: 4,
-    focus: "Cross-Act connections",
+    focus: "Cross-Act connections — linking concepts from different parts of the course",
     scoringLevels: [
-      { points: 4, description: "Sophisticated cross-Act connection; specific examples; bidirectional relationship identified" },
+      { points: 4, description: "Sophisticated cross-Act connection with specific examples; bidirectional relationship" },
       { points: 3, description: "Good connection but one-directional" },
       { points: 2, description: "Surface-level connection without specifics" },
       { points: 1, description: "Unclear or forced connection" },
@@ -722,7 +707,7 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
     maxPoints: 4,
     focus: "What has to be true for linguistic communication to be worth the energy?",
     scoringLevels: [
-      { points: 4, description: "Synthesizes multiple Acts; specific evidence cited; acknowledges uncertainty" },
+      { points: 4, description: "Synthesizes multiple Acts; cites specific evidence; acknowledges uncertainty" },
       { points: 3, description: "Good synthesis but limited evidence or no acknowledgment of uncertainty" },
       { points: 2, description: "Superficial answer; single-perspective" },
       { points: 1, description: "Single-Act answer without synthesis" },
@@ -741,7 +726,7 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
     maxPoints: 4,
     focus: "Clinical application and remaining curiosity",
     scoringLevels: [
-      { points: 4, description: "Specific clinical application identified; genuine remaining question demonstrates curiosity" },
+      { points: 4, description: "Specific clinical application; genuine remaining question showing curiosity" },
       { points: 3, description: "One element strong, one weak" },
       { points: 2, description: "Generic clinical connection and/or generic question" },
       { points: 1, description: "Minimal" },
@@ -757,26 +742,36 @@ export const FINAL_RUBRIC: ExamRubricPart[] = [
 ];
 
 // ============================================================================
-// EXAM GRADING CALIBRATION PHILOSOPHY
+// EXAM GRADING PHILOSOPHY
 // ============================================================================
 
 export const EXAM_GRADING_PHILOSOPHY = `
-CALIBRATION PHILOSOPHY FOR EXAM GRADING:
+EXAM GRADING PHILOSOPHY:
 
-1. START FROM STRENGTHS — Score what they got right before noting gaps.
-2. GENEROUS PARTIAL CREDIT — Reserve 0 only for blank responses or zero effort.
-3. TOOL USAGE IS A BONUS, NOT A REQUIREMENT — If a student references NotebookLM, podcasts, or scaffolding materials, that shows extra engagement and is worth noting positively. But NOT mentioning these tools is perfectly fine — students demonstrate understanding in many ways. Never deduct points for not using or mentioning scaffolding tools.
-4. INTELLECTUAL CURIOSITY VALUED — A genuinely interesting question or unexpected connection should be rewarded even if imperfect.
-5. COACHING TONE — Feedback should say "To earn full points, try..." not "You failed to..."
-6. RESUBMISSION CONTEXT — Students can resubmit for full credit, so feedback should be actionable and specific.
-7. THE GOAL IS GROWTH, NOT PERFECTION — These are undergraduates learning scientific reasoning for the first time.
+From the syllabus:
+- "Traditional exams reward memorization. This course assesses understanding."
+- "The goal is for everyone to succeed"
+- "Learning is iterative. Feedback and revision are built into the process"
+
+WHAT THIS MEANS:
+1. Students can REVISE for full credit — feedback must be actionable
+2. Score what they got RIGHT before noting gaps
+3. Generous partial credit — reserve 0 only for blank or zero effort
+4. Coaching tone: "To earn full points, try..." NOT "You failed to..."
+5. Intellectual curiosity valued — interesting questions should be rewarded
+6. Look for UNDERSTANDING, not just correct terminology
 
 SCORING ANCHORS:
-- 20-24 pts (83-100%): Strong understanding demonstrated across all parts
-- 16-19 pts (67-79%): Good understanding with some gaps; actionable feedback given
-- 12-15 pts (50-67%): Partial understanding; significant coaching feedback needed
+- 20-24 pts (83-100%): Strong understanding across all parts
+- 16-19 pts (67-79%): Good understanding with some gaps
+- 12-15 pts (50-67%): Partial understanding; needs coaching
 - 8-11 pts (33-50%): Minimal engagement; major gaps
 - 0-7 pts (<33%): Missing parts or fundamental misunderstanding
+
+TOOL USAGE:
+- NotebookLM, podcasts, course materials are ALLOWED study aids
+- If mentioned, note as strength showing extra engagement
+- NEVER penalize for not mentioning tools
 `;
 
 // ============================================================================
@@ -786,12 +781,15 @@ SCORING ANCHORS:
 export function buildMidtermGradingPrompt(): string {
   return `You are a coaching-oriented grading assistant for the SLHS 303 Midterm Exam.
 
-${GRADING_GUIDANCE.population}
+${GRADING_PHILOSOPHY}
 
 ${EXAM_GRADING_PHILOSOPHY}
 
 === MIDTERM RUBRIC (24 points total) ===
-Covers Acts I–III. Students can resubmit for full credit.
+Covers Acts I & II. Students can resubmit for full credit.
+
+Key syllabus guidance: "Explain WHY things happen, not just THAT they happen"
+Example: "Trace causal chains (e.g., loudness → pressure → vibration stability → measurement)"
 
 ${MIDTERM_RUBRIC.map(part => `
 ${part.name} (${part.maxPoints} pts) — Focus: ${part.focus}
@@ -800,33 +798,27 @@ ${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` :
 Look for: ${part.lookFor.join('; ')}
 `).join('\n')}
 
-=== SANCTIONED TOOLS (count POSITIVELY — do NOT flag) ===
-- NotebookLM, Google NotebookLM podcasts
-- Course briefing documents, flashcards, quizzes
-- Any scaffolding materials provided by the instructor
-If a student mentions using these tools, note it as a STRENGTH.
+=== AI TOOLS POLICY ===
+- NotebookLM, podcasts, course materials are ALLOWED
+- If mentioned, note as strength
+- NEVER flag or penalize for using study aids
+- Flag ONLY: unauthorized AI writing the submission, fabrication, or plagiarism
 
 === YOUR TASK ===
-1. Read the student's midterm response carefully
-2. Score each Part according to the rubric above
+1. Read the student's midterm response
+2. Score each Part according to the rubric
 3. Start feedback with what they did well
-4. For any points not earned, explain specifically what to add for a resubmission
-5. Use coaching tone: "To earn full points, try..." not "You failed to..."
-6. If a student mentions NotebookLM, podcasts, or scaffolding tools, note it as a bonus — but NEVER deduct for not mentioning them
-7. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
-
-=== FEEDBACK FORMAT ===
-Each part's "feedback" field MUST use this scaffolded format:
-"You earned X/Y on [Part Name]. [If full points: brief praise for what they did well.] [If less than full: 'To earn full points: [specific action they can take for resubmission].']"
+4. For any points not earned: "To earn full points: [SPECIFIC action for resubmission]"
+5. Remember: Students can revise for full credit
 
 === OUTPUT FORMAT (JSON) ===
 {
   "mode": "midterm",
   "parts": [
-    { "name": "Part 1: Core Concepts", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Core Concepts. To earn full points: [specific action]." },
-    { "name": "Part 2: Interpreting Evidence", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Interpreting Evidence. To earn full points: [specific action]." },
-    { "name": "Part 3: Perception Under Noise", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Perception Under Noise. To earn full points: [specific action]." },
-    { "name": "Part 4: Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Reflection. To earn full points: [specific action]." }
+    { "name": "Part 1: Core Concepts", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Core Concepts. [Praise or specific guidance]" },
+    { "name": "Part 2: Interpreting Evidence", "score": X, "maxPoints": 8, "justification": "...", "feedback": "You earned X/8 on Interpreting Evidence. [Praise or specific guidance]" },
+    { "name": "Part 3: Perception Under Noise", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Perception Under Noise. [Praise or specific guidance]" },
+    { "name": "Part 4: Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Reflection. [Praise or specific guidance]" }
   ],
   "totalScore": X,
   "totalPossible": 24,
@@ -835,13 +827,13 @@ Each part's "feedback" field MUST use this scaffolded format:
   "flagReason": ""
 }
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.`;
 }
 
 export function buildFinalGradingPrompt(): string {
   return `You are a coaching-oriented grading assistant for the SLHS 303 Final Exam.
 
-${GRADING_GUIDANCE.population}
+${GRADING_PHILOSOPHY}
 
 ${EXAM_GRADING_PHILOSOPHY}
 
@@ -856,35 +848,29 @@ ${part.keyConcepts.length > 0 ? `Key concepts: ${part.keyConcepts.join('; ')}` :
 Look for: ${part.lookFor.join('; ')}
 `).join('\n')}
 
-=== SANCTIONED TOOLS (count POSITIVELY — do NOT flag) ===
-- NotebookLM, Google NotebookLM podcasts
-- Course briefing documents, flashcards, quizzes
-- Any scaffolding materials provided by the instructor
-If a student mentions using these tools, note it as a STRENGTH.
+=== AI TOOLS POLICY ===
+- NotebookLM, podcasts, course materials are ALLOWED
+- If mentioned, note as strength
+- NEVER flag or penalize for using study aids
+- Flag ONLY: unauthorized AI writing the submission, fabrication, or plagiarism
 
 === YOUR TASK ===
-1. Read the student's final exam response carefully
-2. Score each Part according to the rubric above
-3. For Part 2 (Act Insights), score each Act separately (0-2 pts each) and sum
+1. Read the student's final exam response
+2. Score each Part according to the rubric
+3. For Part 2 (Act Insights), score each Act separately (0-2 pts each)
 4. Start feedback with what they did well
-5. For any points not earned, explain specifically what to add for a resubmission
-6. Use coaching tone: "To earn full points, try..." not "You failed to..."
-7. If a student mentions NotebookLM, podcasts, or scaffolding tools, note it as a bonus — but NEVER deduct for not mentioning them
-8. Flag ONLY for unauthorized AI (ChatGPT/Gemini — NOT NotebookLM), fabrication, or plagiarism
-
-=== FEEDBACK FORMAT ===
-Each part's "feedback" field MUST use this scaffolded format:
-"You earned X/Y on [Part Name]. [If full points: brief praise for what they did well.] [If less than full: 'To earn full points: [specific action they can take for resubmission].']"
+5. For any points not earned: "To earn full points: [SPECIFIC action for resubmission]"
+6. Remember: Students can revise for full credit
 
 === OUTPUT FORMAT (JSON) ===
 {
   "mode": "final",
   "parts": [
-    { "name": "Part 1: Opening Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Opening Reflection. To earn full points: [specific action]." },
-    { "name": "Part 2: Act Insights", "score": X, "maxPoints": 8, "justification": "Act I: X/2 — ...; Act II: X/2 — ...; Act III: X/2 — ...; Act IV: X/2 — ...", "feedback": "You earned X/8 on Act Insights. To earn full points: [specific action per Act that needs improvement]." },
-    { "name": "Part 3: Making Connections", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Making Connections. To earn full points: [specific action]." },
-    { "name": "Part 4: Central Question", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Central Question. To earn full points: [specific action]." },
-    { "name": "Part 5: Looking Forward", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Looking Forward. To earn full points: [specific action]." }
+    { "name": "Part 1: Opening Reflection", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Opening Reflection. [Praise or specific guidance]" },
+    { "name": "Part 2: Act Insights", "score": X, "maxPoints": 8, "justification": "Act I: X/2 — ...; Act II: X/2 — ...; Act III: X/2 — ...; Act IV: X/2 — ...", "feedback": "You earned X/8 on Act Insights. [Praise or specific guidance per Act]" },
+    { "name": "Part 3: Making Connections", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Making Connections. [Praise or specific guidance]" },
+    { "name": "Part 4: Central Question", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Central Question. [Praise or specific guidance]" },
+    { "name": "Part 5: Looking Forward", "score": X, "maxPoints": 4, "justification": "...", "feedback": "You earned X/4 on Looking Forward. [Praise or specific guidance]" }
   ],
   "totalScore": X,
   "totalPossible": 24,
@@ -893,7 +879,7 @@ Each part's "feedback" field MUST use this scaffolded format:
   "flagReason": ""
 }
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.`;
 }
 
 export function buildWeeklyGradingPrompt(weekNumber: number): string {
